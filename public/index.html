@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OpenMarket</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header>
+    <h1>OpenMarket</h1>
+    <p class="subtitle">
+        A private shop, priced off real <a href="https://warframe.market" target="_blank" rel="noopener">warframe.market</a> data.
+        Not real trading &mdash; buying/selling here self-grants items and platinum via SpaceNinjaServer. Mods only, v1.
+    </p>
+</header>
+
+<main>
+    <input id="search" type="text" placeholder="Search mods..." autocomplete="off" />
+    <div id="status" class="status"></div>
+    <div id="mod-list" class="mod-list"></div>
+</main>
+
+<div id="toast-container"></div>
+
+<template id="mod-row-template">
+    <div class="mod-row">
+        <img class="mod-icon" src="" alt="" />
+        <div class="mod-name"></div>
+        <div class="mod-price">&hellip;</div>
+        <button class="btn btn-buy">Buy</button>
+        <button class="btn btn-sell">Sell</button>
+    </div>
+</template>
+
+<script src="app.js"></script>
+</body>
+</html>

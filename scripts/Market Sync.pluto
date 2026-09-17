@@ -1,0 +1,188 @@
+-- Market Sync
+--
+-- The in-game half of OpenMarket. The Node backend (../server/) has no
+-- live game session, so it can't talk to SpaceNinjaServer directly - this
+-- script is the only piece with owf_get_auth_query() session auth, so
+-- it's the only piece allowed to touch SpaceNinjaServer. It polls the
+-- backend for queued buy/sell orders placed from the browser UI, executes
+-- them against SpaceNinjaServer, and reports the result back.
+--
+-- SETUP: run `npm install && npm start` in ../server first (defaults to
+-- http://127.0.0.1:7890), then load this script in-game and start it
+-- (autostarting it alongside your other scripts works fine - it does
+-- nothing but poll harmlessly if the backend isn't reachable yet).
+--
+-- CONFIRMED WORKING end-to-end in-game (2026-09-17): both buy and sell
+-- round trips (item granted/removed, platinum debited/credited) verified
+-- through the real web UI, not just in isolation.
+--
+-- Scope: Mods (Upgrades category) only, plain unranked/unfused copies.
+-- Both directions operate purely on the mod's ItemType path - confirmed
+-- from SpaceNinjaServer's actual source (its sellController.ts's Upgrades
+-- branch: an entry {String=<path>, Count=N>0} decrements N stacked copies
+-- by path, the same shape its addItems accepts to grant them) - no oid/
+-- inventory.php lookup needed, unlike unique-instance gear (Suits,
+-- weapons, etc), which would need a specific owned copy's real database id
+-- instead of a bare type path.
+--
+-- Lifecycle: fire-and-forget polling loop (`repeat ... until yield()`) -
+-- no persistent client-side state is ever set, so there's nothing to
+-- revert if the script is stopped; an order left "processing" because the
+-- script stopped mid-flight just times out on the backend side
+-- (orderQueue.ts's STALE_PROCESSING_MS) instead of needing cleanup here.
+-- Paced via os.millis() to poll only every POLL_MS, not every frame -
+-- http.request is a synchronous/blocking call, so polling every frame
+-- would needlessly stutter the game.
+
+local { http, json } = require "pluto:*"
+
+local BACKEND_HOST = "127.0.0.1"
+local BACKEND_PORT = 7890 -- must match the backend's MARKET_EMULATOR_PORT (default 7890)
+local POLL_MS = 2000
+
+local function backendUrl(path)
+    return "http://" .. BACKEND_HOST .. ":" .. tostring(BACKEND_PORT) .. path
+end
+
+local function snsUrl(path, extraParams)
+    local url = "http://" .. owf_get_server_host() .. ":" .. owf_get_http_port() .. path .. "?" .. owf_get_auth_query()
+    if extraParams then
+        url = url .. "&" .. extraParams
+    end
+    return url
+end
+
+local function fetchPendingOrder()
+    local ok, body, status = pcall(function()
+        return http.request(backendUrl("/internal/pending-order"), {
+            method = "GET",
+            dont_reuse = true,
+            dont_make_reusable = true,
+        })
+    end)
+    if not ok or status ~= 200 then
+        return nil -- covers both "204 nothing queued" and "backend unreachable"
+    end
+    local decodeOk, order = pcall(json.decode, body)
+    if not decodeOk then
+        return nil
+    end
+    return order
+end
+
+local function reportResult(orderId, wasOk, detail)
+    pcall(function()
+        return http.request(backendUrl("/internal/order-result"), {
+            method = "POST",
+            headers = { ["Content-Type"] = "application/json" },
+            body = json.encode({ orderId = orderId, ok = wasOk, detail = detail }),
+            dont_reuse = true,
+            dont_make_reusable = true,
+        })
+    end)
+end
+
+-- Grant the item, then debit platinum only if the grant actually succeeded
+-- (a failed grant should never cost the player anything).
+local function doBuy(order)
+    local grantOk, grantBody, grantStatus = pcall(function()
+        return http.request(snsUrl("/custom/addItems", "wsid=0"), {
+            method = "POST",
+            headers = { ["Content-Type"] = "application/json" },
+            body = json.encode({ { ItemType = order.gameRef, ItemCount = 1 } }),
+            dont_reuse = true,
+            dont_make_reusable = true,
+        })
+    end)
+    if not (grantOk and grantStatus == 200) then
+        return false, "item grant failed (status=" .. tostring(grantStatus) .. "): " .. tostring(grantBody):sub(1, 150)
+    end
+
+    local payOk, payBody, payStatus = pcall(function()
+        return http.request(snsUrl("/custom/addCurrency", "wsid=0"), {
+            method = "POST",
+            headers = { ["Content-Type"] = "application/json" },
+            body = json.encode({ currency = "PremiumCredits", delta = -order.price }),
+            dont_reuse = true,
+            dont_make_reusable = true,
+        })
+    end)
+    if not (payOk and payStatus == 200) then
+        return false, "item granted but platinum debit failed (status=" .. tostring(payStatus) .. "): " .. tostring(payBody):sub(1, 150) .. " - inventory and balance may be out of sync, check manually"
+    end
+
+    chat_system_reply("Market: bought " .. order.name .. " for " .. order.price .. " :platinum:")
+    return true, nil
+end
+
+-- Remove the item (SellPrice=0 -> no real-currency side effect, matches
+-- SpaceNinjaServer's own WebUI "bin icon" behavior), then credit platinum
+-- only if the removal actually succeeded.
+local function doSell(order)
+    local sellOk, sellBody, sellStatus = pcall(function()
+        return http.request(snsUrl("/api/sell.php", "wsid=0"), {
+            method = "POST",
+            headers = { ["Content-Type"] = "text/plain" }, -- NOT application/json - see Market Sell Probe.pluto's header note for why
+            body = json.encode({
+                SellCurrency = "SC_RegularCredits",
+                SellPrice = 0,
+                Items = { Upgrades = { { String = order.gameRef, Count = 1 } } },
+            }),
+            dont_reuse = true,
+            dont_make_reusable = true,
+        })
+    end)
+    if not (sellOk and sellStatus == 200) then
+        return false, "item removal failed (status=" .. tostring(sellStatus) .. "): " .. tostring(sellBody):sub(1, 150)
+    end
+
+    local payOk, payBody, payStatus = pcall(function()
+        return http.request(snsUrl("/custom/addCurrency", "wsid=0"), {
+            method = "POST",
+            headers = { ["Content-Type"] = "application/json" },
+            body = json.encode({ currency = "PremiumCredits", delta = order.price }),
+            dont_reuse = true,
+            dont_make_reusable = true,
+        })
+    end)
+    if not (payOk and payStatus == 200) then
+        return false, "item removed but platinum credit failed (status=" .. tostring(payStatus) .. "): " .. tostring(payBody):sub(1, 150) .. " - inventory and balance may be out of sync, check manually"
+    end
+
+    chat_system_reply("Market: sold " .. order.name .. " for " .. order.price .. " :platinum:")
+    return true, nil
+end
+
+print("Market Sync: started, polling " .. backendUrl("/internal/pending-order") .. " every " .. POLL_MS .. "ms")
+
+local lastPoll = os.millis()
+
+repeat
+    local now = os.millis()
+    if now - lastPoll >= POLL_MS then
+        lastPoll = now
+
+        local order = fetchPendingOrder()
+        if order then
+            print("Market Sync: processing " .. order.direction .. " order for " .. tostring(order.name) .. " (" .. tostring(order.gameRef) .. ") at " .. tostring(order.price) .. " platinum")
+
+            local wasOk, detail
+            if order.direction == "buy" then
+                wasOk, detail = doBuy(order)
+            elseif order.direction == "sell" then
+                wasOk, detail = doSell(order)
+            else
+                wasOk, detail = false, "unknown order direction: " .. tostring(order.direction)
+            end
+
+            if not wasOk then
+                print("Market Sync: order failed - " .. tostring(detail))
+                chat_system_reply("Market: " .. order.direction .. " of " .. tostring(order.name) .. " failed - " .. tostring(detail))
+            end
+
+            reportResult(order.id, wasOk, detail)
+        end
+    end
+until yield()
+
+print("Market Sync: stopped.")

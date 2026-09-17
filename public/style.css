@@ -1,0 +1,128 @@
+:root {
+    --bg: #12141a;
+    --panel: #1b1e27;
+    --border: #2a2e3a;
+    --text: #e4e6eb;
+    --muted: #8b8fa3;
+    --accent: #4fc3f7;
+    --buy: #43a047;
+    --sell: #e53935;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+header {
+    padding: 24px 20px 12px;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+h1 { margin: 0 0 6px; font-size: 1.6rem; }
+
+.subtitle {
+    color: var(--muted);
+    font-size: 0.85rem;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.subtitle a { color: var(--accent); }
+
+main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 12px 20px 40px;
+}
+
+#search {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 1rem;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    margin-bottom: 12px;
+}
+
+.status {
+    color: var(--muted);
+    font-size: 0.85rem;
+    min-height: 1.2em;
+    margin-bottom: 8px;
+}
+
+.mod-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.mod-row {
+    display: grid;
+    grid-template-columns: 36px 1fr 90px auto auto;
+    align-items: center;
+    gap: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
+.mod-icon {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+}
+
+.mod-name { font-size: 0.95rem; }
+
+.mod-price {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+}
+
+.btn {
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: white;
+}
+
+.btn:disabled { opacity: 0.5; cursor: default; }
+
+.btn-buy { background: var(--buy); }
+.btn-sell { background: var(--sell); }
+
+#toast-container {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 10;
+}
+
+.toast {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    max-width: 320px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+
+.toast.ok { border-color: var(--buy); }
+.toast.err { border-color: var(--sell); }

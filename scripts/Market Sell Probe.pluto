@@ -1,0 +1,104 @@
+-- Market Sell Probe
+--
+-- Isolated diagnostic for the one trickiest call OpenMarket depends on:
+-- SpaceNinjaServer's real client-facing POST /api/sell.php endpoint.
+-- Grants 1x Serration (a common, cheap, well-known mod) via the
+-- straightforward /custom/addItems call, then attempts to sell that exact
+-- copy back via /api/sell.php, and reports pass/fail to chat. Useful as a
+-- quick sanity check on a new/unfamiliar SpaceNinjaServer instance before
+-- trusting Market Sync.pluto's real sell flow.
+--
+-- CONFIRMED WORKING end-to-end in-game (2026-09-17).
+--
+-- What SpaceNinjaServer's sellController.ts says (read directly from
+-- source, not guessed):
+--   - Auth: same accountId+nonce tier as /custom/addCurrency -
+--     owf_get_auth_query() covers it.
+--   - For the "Upgrades" (mods) category specifically, an entry
+--     { String = <ItemType path>, Count = N } with N > 0 decrements N
+--     stacked copies of that mod BY PATH - no oid/inventory.php lookup
+--     needed, unlike unique-instance gear (Suits/Weapons/etc, which need
+--     an owned copy's actual database id instead of a bare type path).
+--   - SellPrice/SellCurrency only support real in-game currencies
+--     (Credits/FusionPoints/PrimeBucks/etc) - platinum isn't a valid
+--     SellCurrency, so this probe uses SellPrice=0 (pure removal, exactly
+--     what SpaceNinjaServer's own WebUI "bin icon" does) and doesn't test
+--     currency granting here - /custom/addCurrency is a separate,
+--     well-understood call.
+--
+-- IMPORTANT gotcha this probe caught the hard way: /api/sell.php needs
+-- Content-Type: text/plain, NOT application/json (unlike every other
+-- SpaceNinjaServer call). Its controller does
+-- `JSON.parse(String(req.body))` - it wants the raw string body. Sending
+-- application/json lets Express pre-parse the body into an object, so
+-- String(req.body) becomes the literal text "[object Object]", and the
+-- subsequent JSON.parse() throws - caught by SpaceNinjaServer's generic
+-- error handler, which returns an opaque empty HTTP 500 with no useful
+-- detail in the response (the real error only appears in the server's own
+-- console/log). If you see a bare 500 with an empty body from this call,
+-- check your Content-Type header first.
+--
+-- One-shot script (run once, print/chat the result, exit) - no loop, no
+-- persistent state.
+
+local { http, json } = require "pluto:*"
+
+local TEST_MOD_PATH = "/Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod" -- Serration
+
+local function reportChat(text)
+    print("Market Sell Probe: " .. text)
+    chat_system_reply("Market Sell Probe: " .. text)
+end
+
+local function buildUrl(path, extraParams)
+    local url = "http://" .. owf_get_server_host() .. ":" .. owf_get_http_port() .. path .. "?" .. owf_get_auth_query()
+    if extraParams then
+        url = url .. "&" .. extraParams
+    end
+    return url
+end
+
+reportChat("starting - granting 1x Serration via /custom/addItems...")
+
+local grantOk, grantBody, grantStatus = pcall(function()
+    return http.request(buildUrl("/custom/addItems", "wsid=0"), {
+        method = "POST",
+        headers = { ["Content-Type"] = "application/json" },
+        body = json.encode({ { ItemType = TEST_MOD_PATH, ItemCount = 1 } }),
+        dont_reuse = true,
+        dont_make_reusable = true,
+    })
+end)
+
+if not (grantOk and grantStatus == 200) then
+    reportChat("GRANT FAILED - ok=" .. tostring(grantOk) .. " status=" .. tostring(grantStatus) .. " body=" .. tostring(grantBody):sub(1, 200) .. " -- stopping, can't test sell without a granted copy first")
+    return
+end
+
+reportChat("grant OK - now attempting POST /api/sell.php ...")
+
+local sellPayload = json.encode({
+    SellCurrency = "SC_RegularCredits",
+    SellPrice = 0,
+    Items = {
+        Upgrades = { { String = TEST_MOD_PATH, Count = 1 } },
+    },
+})
+
+local sellOk, sellBody, sellStatus = pcall(function()
+    return http.request(buildUrl("/api/sell.php", "wsid=0"), {
+        method = "POST",
+        headers = { ["Content-Type"] = "text/plain" }, -- NOT application/json - see header note above
+        body = sellPayload,
+        dont_reuse = true,
+        dont_make_reusable = true,
+    })
+end)
+
+if sellOk and sellStatus == 200 then
+    reportChat("SELL SUCCEEDED - status=200 body=" .. tostring(sellBody):sub(1, 200) .. " -- go check your inventory: the extra Serration copy granted above should be GONE.")
+else
+    reportChat("SELL FAILED - ok=" .. tostring(sellOk) .. " status=" .. tostring(sellStatus) .. " body=" .. tostring(sellBody):sub(1, 200) .. " -- if status=500 with an empty body, double-check your Content-Type header is text/plain, not application/json")
+end
+
+print("Market Sell Probe: done.")
