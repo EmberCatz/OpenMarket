@@ -19,6 +19,7 @@ export interface WfmItemEntry {
     gameRef: string;
     tags: string[];
     maxRank?: number; // present on mods/arcanes, absent on relics/other non-rankable items
+    subtypes?: string[]; // present on relics ("intact"/"exceptional"/"flawless"/"radiant"), absent otherwise
     i18n: {
         en?: {
             name: string;

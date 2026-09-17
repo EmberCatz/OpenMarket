@@ -108,6 +108,15 @@ function render() {
     nextPageBtn.disabled = currentPage >= totalPages;
 }
 
+function capitalize(s) {
+    return s.length ? s[0].toUpperCase() + s.slice(1) : s;
+}
+
+// The same +/-/value markup (".rank-stepper") is reused for two different
+// variant kinds: mod/arcane RANK (a numeric 0..maxRank range, set via a
+// Fingerprint on the grant - buy-only, see routes.ts) and relic REFINEMENT
+// (a named Intact/Exceptional/Flawless/Radiant list - just a different
+// plain grantable path per option, so it works for both buy AND sell).
 function renderRow(item) {
     const row = rowTemplate.content.firstElementChild.cloneNode(true);
     const icon = row.querySelector(".mod-icon");
@@ -116,24 +125,32 @@ function renderRow(item) {
     const buyBtn = row.querySelector(".btn-buy");
     const sellBtn = row.querySelector(".btn-sell");
     const stepper = row.querySelector(".rank-stepper");
-    const rankValue = row.querySelector(".rank-value");
-    const rankMinus = row.querySelector(".rank-minus");
-    const rankPlus = row.querySelector(".rank-plus");
+    const stepperValue = row.querySelector(".rank-value");
+    const stepperMinus = row.querySelector(".rank-minus");
+    const stepperPlus = row.querySelector(".rank-plus");
 
     if (item.icon) icon.src = item.icon;
     icon.alt = item.name;
     name.textContent = item.name;
 
-    // Resets to rank 0 whenever this row is re-created (page/search/filter
+    const isRefinable = item.refinements !== null && item.refinements.length > 0;
+    const isRankable = item.maxRank !== null && item.maxRank > 0;
+
+    // Both reset whenever this row is re-created (page/search/filter
     // change re-renders everything from scratch) - a deliberate
     // simplification rather than tracking per-item state across renders.
     let selectedRank = 0;
+    let refinementIndex = isRefinable ? Math.max(0, item.refinements.indexOf(item.defaultSubtype)) : 0;
+
+    function currentSubtype() {
+        return isRefinable ? item.refinements[refinementIndex] : item.defaultSubtype;
+    }
 
     function fetchPrice() {
         price.textContent = "…";
         schedulePriceFetch(() =>
             fetchPriceWithRetry(
-                `/api/price/${encodeURIComponent(item.slug)}?subtype=${encodeURIComponent(item.defaultSubtype)}&rank=${selectedRank}`
+                `/api/price/${encodeURIComponent(item.slug)}?subtype=${encodeURIComponent(currentSubtype())}&rank=${selectedRank}`
             )
                 .then(info => {
                     price.textContent = info.platinum != null ? `${info.platinum}p` : "no price";
@@ -144,49 +161,72 @@ function renderRow(item) {
         );
     }
 
-    // Selling a specific ranked copy isn't supported (would need an
-    // /api/inventory.php oid lookup) - disable Sell whenever a nonzero
-    // rank is selected rather than let it silently sell the wrong thing.
+    // Selling a specific RANKED mod/arcane copy isn't supported (would
+    // need an /api/inventory.php oid lookup) - disable Sell whenever a
+    // nonzero rank is selected. Relic refinement has no such limit (every
+    // refinement is still a plain stackable grant), so Sell always stays
+    // available for relics regardless of the stepper position.
     function updateSellAvailability() {
-        sellBtn.disabled = selectedRank > 0;
-        sellBtn.title = selectedRank > 0 ? "Selling a specific rank isn't supported yet - reset to Rank 0 to sell." : "";
+        const blocked = isRankable && selectedRank > 0;
+        sellBtn.disabled = blocked;
+        sellBtn.title = blocked ? "Selling a specific rank isn't supported yet - reset to Rank 0 to sell." : "";
     }
 
-    if (item.maxRank !== null && item.maxRank > 0) {
+    if (isRankable) {
         stepper.hidden = false;
-        rankValue.textContent = `Rank ${selectedRank}`;
-        rankMinus.disabled = true;
-        rankPlus.disabled = item.maxRank === 0;
-
-        rankMinus.addEventListener("click", () => {
+        const refresh = () => {
+            stepperValue.textContent = `Rank ${selectedRank}`;
+            stepperMinus.disabled = selectedRank <= 0;
+            stepperPlus.disabled = selectedRank >= item.maxRank;
+            updateSellAvailability();
+            fetchPrice();
+        };
+        stepperMinus.addEventListener("click", () => {
             if (selectedRank <= 0) return;
             selectedRank--;
-            rankValue.textContent = `Rank ${selectedRank}`;
-            rankMinus.disabled = selectedRank <= 0;
-            rankPlus.disabled = selectedRank >= item.maxRank;
-            updateSellAvailability();
-            fetchPrice();
+            refresh();
         });
-
-        rankPlus.addEventListener("click", () => {
+        stepperPlus.addEventListener("click", () => {
             if (selectedRank >= item.maxRank) return;
             selectedRank++;
-            rankValue.textContent = `Rank ${selectedRank}`;
-            rankMinus.disabled = selectedRank <= 0;
-            rankPlus.disabled = selectedRank >= item.maxRank;
-            updateSellAvailability();
-            fetchPrice();
+            refresh();
         });
+        stepperValue.textContent = `Rank ${selectedRank}`;
+        stepperMinus.disabled = true;
+        stepperPlus.disabled = item.maxRank === 0;
+    } else if (isRefinable) {
+        stepper.hidden = false;
+        const refresh = () => {
+            stepperValue.textContent = capitalize(item.refinements[refinementIndex]);
+            stepperMinus.disabled = refinementIndex <= 0;
+            stepperPlus.disabled = refinementIndex >= item.refinements.length - 1;
+            fetchPrice();
+        };
+        stepperMinus.addEventListener("click", () => {
+            if (refinementIndex <= 0) return;
+            refinementIndex--;
+            refresh();
+        });
+        stepperPlus.addEventListener("click", () => {
+            if (refinementIndex >= item.refinements.length - 1) return;
+            refinementIndex++;
+            refresh();
+        });
+        stepperValue.textContent = capitalize(item.refinements[refinementIndex]);
+        stepperMinus.disabled = refinementIndex <= 0;
+        stepperPlus.disabled = refinementIndex >= item.refinements.length - 1;
     }
 
     fetchPrice();
 
     updateSellAvailability();
 
-    buyBtn.addEventListener("click", () => placeOrder(item, "buy", price, buyBtn, sellBtn, selectedRank, updateSellAvailability));
+    buyBtn.addEventListener("click", () =>
+        placeOrder(item, "buy", price, buyBtn, sellBtn, selectedRank, currentSubtype(), updateSellAvailability)
+    );
     sellBtn.addEventListener("click", () => {
         if (!confirm(`Sell your copy of "${item.name}"? This removes it from your inventory.`)) return;
-        placeOrder(item, "sell", price, buyBtn, sellBtn, 0, updateSellAvailability);
+        placeOrder(item, "sell", price, buyBtn, sellBtn, 0, currentSubtype(), updateSellAvailability);
     });
 
     listEl.appendChild(row);
@@ -196,7 +236,7 @@ function renderRow(item) {
 // blindly clearing it - otherwise finishing an order while a nonzero
 // rank is selected would incorrectly re-enable Sell for a rank it can't
 // actually target.
-async function placeOrder(item, direction, priceEl, buyBtn, sellBtn, rank, restoreSellState) {
+async function placeOrder(item, direction, priceEl, buyBtn, sellBtn, rank, refinement, restoreSellState) {
     const priceText = priceEl.textContent;
     const platinum = parseInt(priceText, 10);
     if (Number.isNaN(platinum)) {
@@ -209,12 +249,17 @@ async function placeOrder(item, direction, priceEl, buyBtn, sellBtn, rank, resto
         const res = await fetch("/api/order", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ gameRef: item.gameRef, direction, price: platinum, rank })
+            body: JSON.stringify({ gameRef: item.gameRef, direction, price: platinum, rank, refinement })
         });
         const body = await res.json();
         if (!res.ok) throw new Error(body.error || res.statusText);
-        const rankNote = direction === "buy" && rank > 0 ? ` (Rank ${rank})` : "";
-        toast(`${direction === "buy" ? "Buying" : "Selling"} ${item.name}${rankNote}...`, true);
+        const variantNote =
+            direction === "buy" && rank > 0
+                ? ` (Rank ${rank})`
+                : item.type === "relic"
+                  ? ` (${capitalize(refinement)})`
+                  : "";
+        toast(`${direction === "buy" ? "Buying" : "Selling"} ${item.name}${variantNote}...`, true);
         pollOrder(body.orderId, item, direction, buyBtn, restoreSellState);
     } catch (err) {
         toast(`Order failed: ${err.message}`, false);

@@ -1,19 +1,27 @@
 // In-memory cache of everything this app can buy/sell, refreshed hourly.
-// Two families, both plain path+count operations server-side (no oid/
+// Three families, all plain path+count operations server-side (no oid/
 // inventory.php resolution needed - see README.md's "Confirmed HTTP
 // mechanics" for the source-verified writeup of why):
 //
 // - Mods + Arcanes (category "Upgrades"): both route through
 //   SpaceNinjaServer's identical addMods()/RawUpgrades mechanism. Tagged
-//   "mod" or "arcane_enhancement" on warframe.market (NOT "arcane").
-// - Relics (category "MiscItems"), Intact quality only: warframe.market's
-//   gameRef for a relic is the BASE path with no refinement suffix -
-//   confirmed against the local Public Export dump that appending
-//   "Bronze" (Intact) produces a real grantable path, e.g. gameRef
-//   ".../T1VoidProjectionG" + "Bronze" = ".../T1VoidProjectionGBronze"
-//   ("Lith A1", verified 2026-09-17). Exceptional/Flawless/Radiant
-//   (Silver/Gold/Platinum) are a real possible extension later but not
-//   built - would need a per-item refinement selector in the UI.
+//   "mod" or "arcane_enhancement" on warframe.market (NOT "arcane"). Rank
+//   (fusion level) is set via a Fingerprint on the grant - see
+//   Market Sync.pluto's doBuy() - which is why rank>0 buys land in the
+//   unique-instance Upgrades collection and can't be sold back generically.
+// - Relics (category "MiscItems"): warframe.market's gameRef for a relic
+//   is the BASE path with no refinement suffix - confirmed against the
+//   local Public Export dump that appending a suffix produces a real
+//   grantable path per refinement, e.g. ".../T1VoidProjectionG" +
+//   "Bronze" = ".../T1VoidProjectionGBronze" ("Lith A1", Intact, verified
+//   2026-09-17). UNLIKE mod rank, refinement does NOT create a unique
+//   instance - each refinement is just a different plain stackable
+//   MiscItems ItemType, so buy AND sell both work at any refinement via
+//   the same path+count mechanism already proven. `routes.ts` resolves
+//   the base gameRef + chosen refinement into the final grantable path at
+//   order-creation time, so Market Sync.pluto never needs to know
+//   refinement exists at all - it just sees a fully-resolved gameRef,
+//   identical to every other order.
 //
 // `category` and `defaultSubtype` ride along on each entry so the price
 // lookup (which needs the right warframe.market order subtype) and the
@@ -27,19 +35,30 @@ import { fetchAllItems, type WfmItemEntry } from "./warframeMarketApi.js";
 export type ItemCategory = "Upgrades" | "MiscItems";
 export type ItemType = "mod" | "arcane" | "relic";
 
+// warframe.market's subtype names -> the real client path suffix for that
+// relic refinement. Source: ExportRelics.json (local Public Export dump),
+// cross-referenced against warframe.market's own subtype vocabulary.
+export const RELIC_REFINEMENT_SUFFIXES: Record<string, string> = {
+    intact: "Bronze",
+    exceptional: "Silver",
+    flawless: "Gold",
+    radiant: "Platinum"
+};
+const DEFAULT_RELIC_REFINEMENTS = Object.keys(RELIC_REFINEMENT_SUFFIXES);
+
 export interface MarketItem {
     slug: string;
-    gameRef: string;
+    gameRef: string; // relics: BASE path, no suffix. mods/arcanes: the real full grantable path.
     name: string;
     icon: string | null;
     category: ItemCategory;
     type: ItemType;
-    defaultSubtype: string; // the warframe.market order "subtype" this item's price/grant corresponds to
-    maxRank: number | null; // null for relics (not rankable) or if warframe.market didn't report one
+    defaultSubtype: string; // default warframe.market order "subtype" for this item (rank-0 mods: "regular"; relics: "intact")
+    maxRank: number | null; // mods/arcanes only, null otherwise
+    refinements: string[] | null; // relics only (subset of RELIC_REFINEMENT_SUFFIXES' keys), null otherwise
 }
 
 const REFRESH_MS = 60 * 60 * 1000; // 1 hour
-const RELIC_INTACT_SUFFIX = "Bronze";
 
 let cache: MarketItem[] = [];
 let cachedAt = 0;
@@ -62,7 +81,8 @@ function classify(item: WfmItemEntry): MarketItem | null {
             category: "Upgrades",
             type: "arcane",
             defaultSubtype: "regular",
-            maxRank: item.maxRank ?? null
+            maxRank: item.maxRank ?? null,
+            refinements: null
         };
     }
 
@@ -75,20 +95,25 @@ function classify(item: WfmItemEntry): MarketItem | null {
             category: "Upgrades",
             type: "mod",
             defaultSubtype: "regular",
-            maxRank: item.maxRank ?? null
+            maxRank: item.maxRank ?? null,
+            refinements: null
         };
     }
 
     if (item.tags.includes("relic")) {
+        const refinements = (item.subtypes && item.subtypes.length > 0 ? item.subtypes : DEFAULT_RELIC_REFINEMENTS).filter(
+            s => s in RELIC_REFINEMENT_SUFFIXES
+        );
         return {
             slug: item.slug,
-            gameRef: item.gameRef + RELIC_INTACT_SUFFIX,
-            name: `${en.name} (Intact)`,
+            gameRef: item.gameRef,
+            name: en.name,
             icon: iconUrl(en.icon),
             category: "MiscItems",
             type: "relic",
-            defaultSubtype: "intact",
-            maxRank: null
+            defaultSubtype: refinements.includes("intact") ? "intact" : (refinements[0] ?? "intact"),
+            maxRank: null,
+            refinements
         };
     }
 

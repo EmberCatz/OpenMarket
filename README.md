@@ -14,13 +14,14 @@ SpaceNinjaServer. Requires an OpenWF Bootstrapper client and a
 SpaceNinjaServer instance you already control — it does not work against
 the real Warframe servers.
 
-**Scope: Mods + Arcanes + Intact Relics.** Mods/Arcanes route through
-SpaceNinjaServer's identical `addMods()`/`RawUpgrades` mechanism
-server-side (category `Upgrades`); Relics are plain `MiscItems`-category
-stackable grants (Intact quality only — warframe.market's `gameRef` for a
-relic is the base path with no refinement suffix, so this app appends
-`Bronze` itself). See [Known limitations](#known-limitations) for what's
-not covered yet.
+**Scope: Mods + Arcanes + Relics (any refinement).** Mods/Arcanes route
+through SpaceNinjaServer's identical `addMods()`/`RawUpgrades` mechanism
+server-side (category `Upgrades`), with an optional rank (buy-only).
+Relics are plain `MiscItems`-category stackable grants at any refinement
+(Intact/Exceptional/Flawless/Radiant, buy AND sell) — warframe.market's
+`gameRef` for a relic is the base path with no refinement suffix, so this
+app resolves the right suffix server-side per order. See
+[Known limitations](#known-limitations) for what's not covered yet.
 
 ## Architecture
 
@@ -56,11 +57,17 @@ categories), a type filter (All/Mods/Arcanes/Relics), and a List/Grid view
 toggle. Grid view is pure CSS on the same row markup as List — toggling
 between them never re-fetches prices.
 
-Mods/Arcanes also get a rank stepper (0..maxRank) that live-updates the
+Mods/Arcanes get a rank stepper (0..maxRank) that live-updates the
 displayed price from warframe.market's per-rank order data — buying grants
 the exact rank shown. **Selling stays rank-0 only**: a specific ranked copy
 can't be sold back (would need `/api/inventory.php`-based database-id
 resolution), so Sell auto-disables whenever a nonzero rank is selected.
+
+Relics get the same +/- stepper, reused for a different purpose: cycling
+through Intact/Exceptional/Flawless/Radiant. Unlike rank, refinement isn't
+a unique-instance thing server-side (just a different plain grantable
+path per option), so **both Buy and Sell work at any refinement** — Sell
+never disables for relics.
 
 ## Setup
 
@@ -120,7 +127,8 @@ Read directly from SpaceNinjaServer's source, not guessed:
   WeaponDamageAmountMod"`) is directly the real client `ItemType` path —
   no separate mapping table is needed to go from a market item to what to
   grant/remove. For relics specifically, `gameRef` is the BASE path with
-  no refinement suffix — this app appends `Bronze` (Intact) itself.
+  no refinement suffix — resolved to the right suffix server-side per
+  order (see below).
 - **CONFIRMED WORKING end-to-end for all three categories (2026-09-17)** —
   Mods, Arcanes, and Relics each verified with a real in-game buy + sell
   round trip through this UI against a live SpaceNinjaServer instance.
@@ -134,14 +142,19 @@ Read directly from SpaceNinjaServer's source, not guessed:
   Prematurely` when fetched twice in close succession — a real but
   occasional quirk of that large response, not a bug in the request
   itself. Treat a failed read as "try again."
+- **Relic refinement, CONFIRMED WORKING (2026-09-17).** `routes.ts`
+  resolves `base + {Bronze,Silver,Gold,Platinum}` server-side per order
+  based on the chosen refinement, so `Market Sync.pluto` needed **zero
+  changes** — it just sees an already-resolved `gameRef`, same as every
+  other order. Reuses the identical already-proven `sell.php`/`addItems`
+  mechanism with just a different resolved path.
 
 ## Known limitations
 
-- No weapon/warframe skins or prime parts yet — unique-instance gear needs
-  `/api/inventory.php`-based database-id resolution, a bigger lift than
-  the path-based items above.
-- Relics are Intact quality only — no Exceptional/Flawless/Radiant
-  refinement selection yet.
+- No unique-instance gear yet (weapon/Warframe skins turned out not to be
+  tradeable on warframe.market at all — checked, not guessed — so
+  Syndicate armor pieces are the concrete remaining candidate if this is
+  ever picked up; would need `/api/inventory.php`-based oid resolution).
 - Selling a specific ranked mod/arcane copy isn't supported — Sell always
   targets the plain rank-0 stock (same oid-resolution gap as unique-
   instance gear above).
