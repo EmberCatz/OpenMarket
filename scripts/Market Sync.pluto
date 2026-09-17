@@ -58,12 +58,30 @@
 -- matches this script's existing best-effort pattern (nothing else here
 -- rolls back either) - the player keeps whatever succeeded and is told
 -- what didn't.
+--
+-- Owned-count sync: separately from order polling, this script also
+-- fetches GET /api/inventory.php on its own INVENTORY_POLL_MS timer and
+-- POSTs a flattened {ItemType: count} map (from the response's
+-- RawUpgrades/MiscItems/Recipes arrays) to the backend, so the shop UI
+-- can show what you actually own and gray out Sell at 0 - purely a UX
+-- aid, not safety-critical (SpaceNinjaServer's own sellController.ts
+-- already throws if a sell would take a count negative, confirmed from
+-- source). CONFIRMED WORKING but with a real, MEASURED flakiness rate:
+-- this endpoint returns "Connection Closed Prematurely" on roughly 25-30%
+-- of calls on at least one real setup - quantified with a dedicated
+-- 15-sample probe (see scripts/Market Inventory Flake Probe.pluto), which
+-- also showed the response is a constant, small size (~300KB, ~60ms) each
+-- time - ruling out payload size/timeout as the cause. A failed fetch
+-- here just skips that cycle and retries next time, which at that flake
+-- rate gets a successful sync within 1-2 cycles the large majority of the
+-- time.
 
 local { http, json } = require "pluto:*"
 
 local BACKEND_HOST = "127.0.0.1"
 local BACKEND_PORT = 7890 -- must match the backend's MARKET_EMULATOR_PORT (default 7890)
 local POLL_MS = 2000
+local INVENTORY_POLL_MS = 30000 -- inventory.php is a heavy ~300KB call - not worth fetching every POLL_MS
 
 local function backendUrl(path)
     return "http://" .. BACKEND_HOST .. ":" .. tostring(BACKEND_PORT) .. path
@@ -101,6 +119,56 @@ local function reportResult(orderId, wasOk, detail)
             method = "POST",
             headers = { ["Content-Type"] = "application/json" },
             body = json.encode({ orderId = orderId, ok = wasOk, detail = detail }),
+            dont_reuse = true,
+            dont_make_reusable = true,
+        })
+    end)
+end
+
+-- Flattens inventory.php's per-category arrays ({ItemType, ItemCount}[])
+-- into one {ItemType: totalCount} map. Only the 3 categories this shop
+-- actually sells from are relevant - RawUpgrades (rank-0 mods/arcanes,
+-- the only rank Sell ever targets), MiscItems (relics, any refinement -
+-- each refinement is already a distinct ItemType path), and Recipes
+-- (Prime parts).
+local function flattenOwnedCounts(inv)
+    local counts = {}
+    local function accumulate(list)
+        if not list then return end
+        for _, entry in list do
+            counts[entry.ItemType] = (counts[entry.ItemType] or 0) + (entry.ItemCount or 0)
+        end
+    end
+    accumulate(inv.RawUpgrades)
+    accumulate(inv.MiscItems)
+    accumulate(inv.Recipes)
+    return counts
+end
+
+local function syncInventorySnapshot()
+    local ok, body, status = pcall(function()
+        return http.request(snsUrl("/api/inventory.php", "wsid=0"), {
+            method = "GET",
+            dont_reuse = true,
+            dont_make_reusable = true,
+        })
+    end)
+    if not (ok and status == 200) then
+        print("Market Sync: inventory fetch failed (status=" .. tostring(status) .. "), will retry next cycle")
+        return
+    end
+
+    local decodeOk, inv = pcall(json.decode, body)
+    if not decodeOk then
+        print("Market Sync: inventory response failed to decode, will retry next cycle")
+        return
+    end
+
+    pcall(function()
+        return http.request(backendUrl("/internal/inventory-snapshot"), {
+            method = "POST",
+            headers = { ["Content-Type"] = "application/json" },
+            body = json.encode({ counts = flattenOwnedCounts(inv) }),
             dont_reuse = true,
             dont_make_reusable = true,
         })
@@ -216,9 +284,16 @@ end
 print("Market Sync: started, polling " .. backendUrl("/internal/pending-order") .. " every " .. POLL_MS .. "ms")
 
 local lastPoll = os.millis()
+local lastInventoryPoll = 0 -- 0 forces an immediate first sync rather than waiting a full INVENTORY_POLL_MS
 
 repeat
     local now = os.millis()
+
+    if now - lastInventoryPoll >= INVENTORY_POLL_MS then
+        lastInventoryPoll = now
+        syncInventorySnapshot()
+    end
+
     if now - lastPoll >= POLL_MS then
         lastPoll = now
 

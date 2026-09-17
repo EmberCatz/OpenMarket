@@ -104,7 +104,19 @@ bottom-right corner showing which of the 4 fixed Warframe slots it is
 assets (those slot icons are packed game textures, not exposed in the
 local Public Export data), derived from the part's own gameRef suffix
 (`...HelmetBlueprint`/`...ChassisBlueprint`/`...SystemsBlueprint`/plain
-`...Blueprint`), which was verified uniform across all 50 sets.
+`...Blueprint`), which was verified uniform across all 50 sets. Item
+icons are 64px in List view / 96px in Grid view.
+
+Every sellable row also shows an **"Owned: N"** count (red at 0), reported
+live by `Market Sync.pluto` from `/api/inventory.php` — see Confirmed HTTP
+mechanics below for the full mechanism and its measured flakiness. Sell
+auto-disables once the confirmed count is 0; before any inventory sync has
+landed yet it shows "Owned: ?" and never blocks Sell (an unknown count is
+never treated as "definitely zero"). This is a UX aid only, not a safety
+mechanism — SpaceNinjaServer's own `sellController.ts` already refuses to
+oversell server-side regardless of what this app thinks you own. Prime
+sets skip the display entirely (no single owned count means anything for
+a 4-part bundle; their Sell slot is already the parts-dropdown toggle).
 
 ## Setup
 
@@ -138,6 +150,12 @@ mechanism (`Fingerprint: {"lvl":N}` on the grant) — confirmed working.
 category Prime parts use — grants a cheap Prime Blueprint, pauses 15s so
 you can check your Foundry's Blueprints tab, then sells it back and pauses
 again — confirmed working.
+
+`scripts/Market Inventory Flake Probe.pluto` measures `/api/inventory.php`'s
+real reliability on your own setup — 15 isolated calls, 4s apart, reports
+a success rate + response size + timing summary. Useful if the shop's
+"Owned: N" counts seem slow to show up; see Confirmed HTTP mechanics below
+for what a real run looked like.
 
 ## Confirmed HTTP mechanics
 
@@ -179,11 +197,23 @@ Read directly from SpaceNinjaServer's source, not guessed:
   grant — the same mechanism SpaceNinjaServer's own WebUI uses for its
   "acquire mod max" flow. Verified live: a rank-3 Serration appeared in
   the Mods screen after granting it through this mechanism.
-- `/api/inventory.php` (used only by the ranked-mod probe, not by the
-  live buy/sell path) intermittently fails with `Connection Closed
-  Prematurely` when fetched twice in close succession — a real but
-  occasional quirk of that large response, not a bug in the request
-  itself. Treat a failed read as "try again."
+- `/api/inventory.php` (used by the ranked-mod probe, and by
+  `Market Sync.pluto`'s owned-count sync below) intermittently fails with
+  `Connection Closed Prematurely` — measured at a real, bounded **~25-30%
+  per-call failure rate** on one setup via `Market Inventory Flake
+  Probe.pluto` (15 isolated calls, 4s apart: 11/15 succeeded, longest
+  failure streak was 1). Response size was IDENTICAL on every success —
+  exactly 305141 bytes, zero variance — and timing was fast and
+  consistent on both success AND failure (55-68ms), which rules out
+  payload size or a slow timeout as the cause. Root cause otherwise
+  unconfirmed (no timeout knob is available on Pluto's `http.request` to
+  tune). Not fixable from script-side, but bounded and well-behaved
+  enough that a 30s retry-on-failure loop (what `Market Sync.pluto`
+  already does) lands a successful sync within 1-2 cycles the large
+  majority of the time. Treat a failed read as "try again," and expect
+  the occasional run of several failures in a row as normal variance
+  (P(4 in a row) ≈ 0.5% at this rate, rare but not a sign anything's
+  actually wrong).
 - **Relic refinement, CONFIRMED WORKING (2026-09-17).** `routes.ts`
   resolves `base + {Bronze,Silver,Gold,Platinum}` server-side per order
   based on the chosen refinement, so `Market Sync.pluto` needed **zero
@@ -199,6 +229,20 @@ Read directly from SpaceNinjaServer's source, not guessed:
   Set" was also verified through the real UI, resolving to a 4-part order
   with the correct bundled price sourced from the Set's own warframe.market
   listing.
+- **Owned-count sync (`GET /api/owned`, `POST /internal/inventory-snapshot`),
+  CONFIRMED WORKING (2026-09-17).** `Market Sync.pluto` fetches
+  `GET /api/inventory.php` on its own 30s timer (separate from order
+  polling) and reports a flattened `{ItemType: count}` map built from the
+  response's `RawUpgrades`/`MiscItems`/`Recipes` arrays — field names/
+  shapes confirmed from SpaceNinjaServer's actual `inventoryTypes.ts`, not
+  guessed. The endpoint call itself was already proven (see the flakiness
+  entry above); what was genuinely new here was calling it repeatedly in
+  a long-running background loop instead of a one-off probe. **Not a
+  safety-critical mechanism** — SpaceNinjaServer's own `sellController.ts`
+  throws if a sell would take a stored count negative (confirmed from
+  source: `addMiscItems`/`addRecipes`/`addMods` all guard this identically),
+  so a stale/wrong/missing snapshot can at worst let a doomed Sell click
+  through to a normal failed-order toast, never an actual oversell.
 
 ## Known limitations
 
@@ -226,6 +270,11 @@ Read directly from SpaceNinjaServer's source, not guessed:
 - No persistence — a backend restart drops any in-flight order. Fine for
   a personal single-account tool; add real storage first if you want to
   build on top of this.
+- Owned counts can lag reality by up to 30s after a change made outside
+  this shop (e.g. selling something through the real in-game Market UI
+  instead). Buy/sell orders placed through this shop itself update the
+  displayed count instantly (optimistic local adjustment) — only outside
+  changes wait for the next sync.
 - This is a fake economy. Prices come from warframe.market but the
   platinum/items themselves are self-granted, not tied to any other real
   player or account.

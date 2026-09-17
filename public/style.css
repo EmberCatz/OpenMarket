@@ -199,6 +199,17 @@ main {
     white-space: nowrap;
 }
 
+/* No explicit `display` here - unlike .rank-stepper/.slot-badge, this
+   never fights the UA default [hidden] rule, so no override needed. */
+.owned-count {
+    font-size: 0.72rem;
+    color: var(--muted);
+}
+
+.owned-count.none {
+    color: var(--sell);
+}
+
 .rank-stepper {
     display: flex;
     align-items: center;

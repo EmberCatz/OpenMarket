@@ -1,0 +1,99 @@
+-- Market Inventory Flake Probe
+--
+-- Diagnostic for the "Connection Closed Prematurely" flakiness on
+-- GET /api/inventory.php discovered while building the Market Emulator's
+-- owned-count sync feature (see project memory
+-- reference_spaceninjaserver_inventoryphp and project_market_emulator).
+-- Observed far more often than the original single data point suggested:
+-- Market Sync.pluto's 30s timer hit it 4 times in a row, and even the
+-- pre-existing Market Ranked Mod Probe.pluto (a single isolated call, no
+-- loop) failed on its first run before succeeding on an immediate retry.
+-- Checked and ruled out: SpaceNinjaServer's own console showed nothing
+-- unusual during the failures, so this isn't a server-side exception
+-- mid-response. This probe calls the endpoint repeatedly in isolation
+-- and reports a success rate + response size + timing summary, to get
+-- real numbers instead of guessing at a cause (no timeout knob is
+-- documented/available for Pluto's http.request to test against -
+-- checked Script API Reference.pluto and pluto-scripting-guide.md, the
+-- "http" module is a Pluto stdlib addition with no local signature docs
+-- for this project to tune against).
+--
+-- One-shot script - runs SAMPLE_COUNT attempts spaced SAMPLE_DELAY_MS
+-- apart, then reports a summary and exits. No mutation, no side effects
+-- beyond what a normal inventory.php read already causes (daily-reset
+-- checks etc, per that memory entry).
+
+local { http } = require "pluto:*"
+
+local SAMPLE_COUNT = 15
+local SAMPLE_DELAY_MS = 4000
+
+local function buildUrl(path, extraParams)
+    local url = "http://" .. owf_get_server_host() .. ":" .. owf_get_http_port() .. path .. "?" .. owf_get_auth_query()
+    if extraParams then
+        url = url .. "&" .. extraParams
+    end
+    return url
+end
+
+local function reportChat(text)
+    print("Market Inventory Flake Probe: " .. text)
+    chat_system_reply("Market Inventory Flake Probe: " .. text)
+end
+
+reportChat(
+    "starting - " .. SAMPLE_COUNT .. " samples, " .. (SAMPLE_DELAY_MS / 1000) ..
+    "s apart. Takes about " .. math.floor(SAMPLE_COUNT * SAMPLE_DELAY_MS / 1000) .. "s, watch script_log for per-sample detail."
+)
+
+local successes = 0
+local failures = 0
+local totalElapsedMs = 0
+local minBytes, maxBytes = nil, nil
+local failureStreak = 0
+local longestFailureStreak = 0
+
+for i = 1, SAMPLE_COUNT do
+    local startedAt = os.millis()
+    local ok, body, status = pcall(function()
+        return http.request(buildUrl("/api/inventory.php", "wsid=0"), {
+            method = "GET",
+            dont_reuse = true,
+            dont_make_reusable = true,
+        })
+    end)
+    local elapsed = os.millis() - startedAt
+
+    if ok and status == 200 then
+        successes = successes + 1
+        totalElapsedMs = totalElapsedMs + elapsed
+        local bytes = #body
+        if not minBytes or bytes < minBytes then minBytes = bytes end
+        if not maxBytes or bytes > maxBytes then maxBytes = bytes end
+        failureStreak = 0
+        print("Market Inventory Flake Probe: sample " .. i .. "/" .. SAMPLE_COUNT .. " OK - " .. elapsed .. "ms, " .. bytes .. " bytes")
+    else
+        failures = failures + 1
+        failureStreak = failureStreak + 1
+        if failureStreak > longestFailureStreak then
+            longestFailureStreak = failureStreak
+        end
+        print("Market Inventory Flake Probe: sample " .. i .. "/" .. SAMPLE_COUNT .. " FAILED - status=" .. tostring(status) .. ", " .. elapsed .. "ms")
+    end
+
+    if i < SAMPLE_COUNT then
+        coroutine.sleep(SAMPLE_DELAY_MS)
+    end
+end
+
+local avgMs = successes > 0 and math.floor(totalElapsedMs / successes) or 0
+local sizeNote = successes > 0
+    and ("successful calls: avg " .. avgMs .. "ms, " .. tostring(minBytes) .. "-" .. tostring(maxBytes) .. " bytes.")
+    or "no successful calls at all."
+
+reportChat(
+    successes .. "/" .. SAMPLE_COUNT .. " succeeded, " .. failures .. " failed (longest failure streak: " ..
+    longestFailureStreak .. "). " .. sizeNote
+)
+
+print("Market Inventory Flake Probe: done.")

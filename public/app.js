@@ -1,25 +1,27 @@
 const ITEMS_PER_PAGE = 40;
 
-// Firing all of a page's price lookups at once used to trip
+// Firing all of a page's price/owned-count lookups at once used to trip
 // warframe.market's rate limiting on broad searches (e.g. "meso" ->
 // ~40 simultaneous /api/price calls) - stagger them through a small
-// concurrency-limited queue instead.
-const PRICE_FETCH_CONCURRENCY = 5;
-let activePriceFetches = 0;
-const priceFetchQueue = [];
+// concurrency-limited queue instead. Shared by both /api/price and
+// /api/owned calls, since they're both per-row lookups that fire at the
+// same time on render and should share one request budget.
+const FETCH_CONCURRENCY = 5;
+let activeFetches = 0;
+const fetchQueue = [];
 
-function schedulePriceFetch(task) {
-    priceFetchQueue.push(task);
-    pumpPriceFetchQueue();
+function scheduleFetch(task) {
+    fetchQueue.push(task);
+    pumpFetchQueue();
 }
 
-function pumpPriceFetchQueue() {
-    while (activePriceFetches < PRICE_FETCH_CONCURRENCY && priceFetchQueue.length > 0) {
-        const task = priceFetchQueue.shift();
-        activePriceFetches++;
+function pumpFetchQueue() {
+    while (activeFetches < FETCH_CONCURRENCY && fetchQueue.length > 0) {
+        const task = fetchQueue.shift();
+        activeFetches++;
         task().finally(() => {
-            activePriceFetches--;
-            pumpPriceFetchQueue();
+            activeFetches--;
+            pumpFetchQueue();
         });
     }
 }
@@ -33,13 +35,15 @@ function delay(ms) {
 // near-worst-case burst. Retry a couple of times with a short backoff
 // before actually giving up and showing "?" - makes a transient
 // rate-limit hit self-heal instead of needing the user to manually
-// narrow the search to work around it.
-async function fetchPriceWithRetry(url, attempt = 0) {
+// narrow the search to work around it. Used for both /api/price (rate
+// limited by warframe.market) and /api/owned (not rate limited itself,
+// but shares the retry-on-transient-failure behavior for consistency).
+async function fetchJsonWithRetry(url, attempt = 0) {
     const res = await fetch(url);
     if (res.ok) return res.json();
     if (attempt >= 2) throw new Error(`HTTP ${res.status}`);
     await delay(500 * (attempt + 1));
-    return fetchPriceWithRetry(url, attempt + 1);
+    return fetchJsonWithRetry(url, attempt + 1);
 }
 
 const statusEl = document.getElementById("status");
@@ -235,6 +239,7 @@ function renderRow(item) {
     const stepperValue = row.querySelector(".rank-value");
     const stepperMinus = row.querySelector(".rank-minus");
     const stepperPlus = row.querySelector(".rank-plus");
+    const ownedEl = row.querySelector(".owned-count");
 
     if (item.icon) icon.src = item.icon;
     icon.alt = item.name;
@@ -267,8 +272,8 @@ function renderRow(item) {
 
     function fetchPrice() {
         price.textContent = "…";
-        schedulePriceFetch(() =>
-            fetchPriceWithRetry(
+        scheduleFetch(() =>
+            fetchJsonWithRetry(
                 `/api/price/${encodeURIComponent(item.slug)}?subtype=${encodeURIComponent(currentSubtype())}&rank=${selectedRank}`
             )
                 .then(info => {
@@ -280,15 +285,71 @@ function renderRow(item) {
         );
     }
 
+    // Owned count, reported by Market Sync.pluto from /api/inventory.php
+    // (see itemsCache.ts/routes.ts's /api/owned) - a UX aid only, NOT a
+    // safety mechanism (SpaceNinjaServer itself already rejects overselling
+    // - see inventorySnapshot.ts's module comment), so a wrong/stale/
+    // unknown count just means Sell might stay enabled for something you
+    // don't have, resulting in a normal failed-order toast, not real data
+    // loss. `known` stays false (shown as "Owned: ?", never blocks Sell)
+    // until Market Sync.pluto's first inventory sync lands - distinct from
+    // a confirmed "Owned: 0".
+    let ownedCount = null;
+    let ownedKnown = false;
+
+    // A Prime set has no single "owned" count (buying one grants 4
+    // different real parts, never the set's own path) and its Sell slot
+    // is repurposed as the parts-dropdown toggle anyway - skip entirely.
+    function fetchOwned() {
+        if (item.type === "prime_set") return;
+        ownedEl.hidden = false;
+        ownedEl.textContent = "Owned: …";
+        ownedEl.classList.remove("none");
+        scheduleFetch(() =>
+            fetchJsonWithRetry(`/api/owned/${encodeURIComponent(item.slug)}?refinement=${encodeURIComponent(currentSubtype())}`)
+                .then(info => {
+                    ownedKnown = info.known;
+                    ownedCount = info.known ? info.owned : null;
+                    ownedEl.textContent = info.known ? `Owned: ${info.owned}` : "Owned: ?";
+                    ownedEl.classList.toggle("none", info.known && info.owned === 0);
+                    updateSellAvailability();
+                })
+                .catch(() => {
+                    ownedEl.textContent = "Owned: ?";
+                    ownedEl.classList.remove("none");
+                })
+        );
+    }
+
+    // Applied optimistically right after a buy/sell order completes, so
+    // the count/Sell-availability update instantly instead of waiting up
+    // to INVENTORY_POLL_MS (30s) for Market Sync.pluto's next real sync.
+    // Only touches state we actually have (ownedKnown) - never fabricates
+    // a count we haven't confirmed via /api/owned at least once.
+    function adjustOwnedLocally(delta) {
+        if (!ownedKnown) return;
+        ownedCount = Math.max(0, ownedCount + delta);
+        ownedEl.textContent = `Owned: ${ownedCount}`;
+        ownedEl.classList.toggle("none", ownedCount === 0);
+        updateSellAvailability();
+    }
+
     // Selling a specific RANKED mod/arcane copy isn't supported (would
     // need an /api/inventory.php oid lookup) - disable Sell whenever a
     // nonzero rank is selected. Relic refinement has no such limit (every
     // refinement is still a plain stackable grant), so Sell always stays
-    // available for relics regardless of the stepper position.
+    // available for relics regardless of the stepper position. Also
+    // disables whenever the owned count is confirmed 0 - "confirmed"
+    // meaning ownedKnown, so an unfetched/unknown count never blocks Sell.
     function updateSellAvailability() {
-        const blocked = isRankable && selectedRank > 0;
-        sellBtn.disabled = blocked;
-        sellBtn.title = blocked ? "Selling a specific rank isn't supported yet - reset to Rank 0 to sell." : "";
+        const rankBlocked = isRankable && selectedRank > 0;
+        const outOfStock = ownedKnown && ownedCount === 0;
+        sellBtn.disabled = rankBlocked || outOfStock;
+        sellBtn.title = rankBlocked
+            ? "Selling a specific rank isn't supported yet - reset to Rank 0 to sell."
+            : outOfStock
+              ? "You don't own any of these to sell."
+              : "";
     }
 
     if (isRankable) {
@@ -320,6 +381,7 @@ function renderRow(item) {
             stepperMinus.disabled = refinementIndex <= 0;
             stepperPlus.disabled = refinementIndex >= item.refinements.length - 1;
             fetchPrice();
+            fetchOwned();
         };
         stepperMinus.addEventListener("click", () => {
             if (refinementIndex <= 0) return;
@@ -337,11 +399,12 @@ function renderRow(item) {
     }
 
     fetchPrice();
+    fetchOwned();
 
     updateSellAvailability();
 
     buyBtn.addEventListener("click", () =>
-        placeOrder(item, "buy", price, buyBtn, sellBtn, selectedRank, currentSubtype(), updateSellAvailability)
+        placeOrder(item, "buy", price, buyBtn, sellBtn, selectedRank, currentSubtype(), updateSellAvailability, adjustOwnedLocally)
     );
     // Sets don't get a Sell listener at all - their Sell button slot is
     // repurposed as a parts-dropdown toggle by attachSetChildren(), which
@@ -349,7 +412,7 @@ function renderRow(item) {
     if (item.type !== "prime_set") {
         sellBtn.addEventListener("click", () => {
             if (!confirm(`Sell your copy of "${item.name}"? This removes it from your inventory.`)) return;
-            placeOrder(item, "sell", price, buyBtn, sellBtn, 0, currentSubtype(), updateSellAvailability);
+            placeOrder(item, "sell", price, buyBtn, sellBtn, 0, currentSubtype(), updateSellAvailability, adjustOwnedLocally);
         });
     }
 
@@ -360,7 +423,7 @@ function renderRow(item) {
 // blindly clearing it - otherwise finishing an order while a nonzero
 // rank is selected would incorrectly re-enable Sell for a rank it can't
 // actually target.
-async function placeOrder(item, direction, priceEl, buyBtn, sellBtn, rank, refinement, restoreSellState) {
+async function placeOrder(item, direction, priceEl, buyBtn, sellBtn, rank, refinement, restoreSellState, adjustOwnedLocally) {
     const priceText = priceEl.textContent;
     const platinum = parseInt(priceText, 10);
     if (Number.isNaN(platinum)) {
@@ -384,7 +447,7 @@ async function placeOrder(item, direction, priceEl, buyBtn, sellBtn, rank, refin
                   ? ` (${capitalize(refinement)})`
                   : "";
         toast(`${direction === "buy" ? "Buying" : "Selling"} ${item.name}${variantNote}...`, true);
-        pollOrder(body.orderId, item, direction, buyBtn, restoreSellState);
+        pollOrder(body.orderId, item, direction, rank, buyBtn, restoreSellState, adjustOwnedLocally);
     } catch (err) {
         toast(`Order failed: ${err.message}`, false);
         buyBtn.disabled = false;
@@ -392,7 +455,7 @@ async function placeOrder(item, direction, priceEl, buyBtn, sellBtn, rank, refin
     }
 }
 
-function pollOrder(orderId, item, direction, buyBtn, restoreSellState) {
+function pollOrder(orderId, item, direction, rank, buyBtn, restoreSellState, adjustOwnedLocally) {
     const interval = setInterval(async () => {
         try {
             const res = await fetch(`/api/order/${orderId}`);
@@ -402,6 +465,11 @@ function pollOrder(orderId, item, direction, buyBtn, restoreSellState) {
                 toast(`${direction === "buy" ? "Bought" : "Sold"} ${item.name} for ${order.price}p.`, true);
                 buyBtn.disabled = false;
                 restoreSellState();
+                // A rank>0 buy lands in the unique-instance Upgrades
+                // collection, not the plain stack /api/owned reads from -
+                // don't optimistically bump a count that call can't see.
+                if (direction === "sell") adjustOwnedLocally(-1);
+                else if (direction === "buy" && rank === 0) adjustOwnedLocally(1);
             } else if (order.status === "failed") {
                 clearInterval(interval);
                 toast(`${direction === "buy" ? "Buy" : "Sell"} failed for ${item.name}: ${order.detail || "unknown error"}`, false);

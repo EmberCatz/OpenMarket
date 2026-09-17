@@ -266,3 +266,22 @@ export async function findItemByGameRef(gameRef: string): Promise<MarketItem | u
     const items = await getItems();
     return items.find(m => m.gameRef === gameRef);
 }
+
+export async function findItemBySlug(slug: string): Promise<MarketItem | undefined> {
+    const items = await getItems();
+    return items.find(m => m.slug === slug);
+}
+
+// The real grantable/sellable ItemType path for an item at a given
+// refinement - same resolution routes.ts already does when creating a
+// sell order, factored out so the owned-count lookup (GET /api/owned)
+// stays in sync with it rather than re-deriving the suffix logic
+// separately. Only relics vary by refinement; everything else's gameRef
+// IS the sellable path already (Sell is always rank-0 for mods/arcanes,
+// and Prime parts/sets have no variants at all).
+export function resolveSellGameRef(item: MarketItem, refinement?: string): string {
+    if (item.type !== "relic") return item.gameRef;
+    const chosen = typeof refinement === "string" && item.refinements?.includes(refinement) ? refinement : item.defaultSubtype;
+    const suffix = RELIC_REFINEMENT_SUFFIXES[chosen];
+    return suffix ? item.gameRef + suffix : item.gameRef;
+}

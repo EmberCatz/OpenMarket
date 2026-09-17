@@ -1,7 +1,8 @@
 import { Router } from "express";
-import { getItems, findItemByGameRef, RELIC_REFINEMENT_SUFFIXES } from "./itemsCache.js";
+import { getItems, findItemByGameRef, findItemBySlug, resolveSellGameRef, RELIC_REFINEMENT_SUFFIXES } from "./itemsCache.js";
 import { getPrice } from "./priceCache.js";
 import { enqueueOrder, popPendingOrder, reportOrderResult, getOrder } from "./orderQueue.js";
+import { setInventorySnapshot, getOwnedCount, hasInventorySnapshot } from "./inventorySnapshot.js";
 
 export const apiRouter = Router();
 export const internalRouter = Router();
@@ -94,6 +95,21 @@ apiRouter.post("/order", async (req, res) => {
     res.json({ orderId: order.id });
 });
 
+// Prime sets have no single "owned" count that means anything (buying one
+// grants 4 different real parts, never the set's own gameRef - see
+// itemsCache.ts) - the frontend only ever calls this for sellable items
+// (individual parts, mods/arcanes at rank 0, relics at any refinement).
+apiRouter.get("/owned/:slug", async (req, res) => {
+    const item = await findItemBySlug(req.params.slug);
+    if (!item) {
+        res.status(404).json({ error: "Unknown slug" });
+        return;
+    }
+    const refinement = typeof req.query.refinement === "string" ? req.query.refinement : undefined;
+    const gameRef = resolveSellGameRef(item, refinement);
+    res.json({ owned: getOwnedCount(gameRef), known: hasInventorySnapshot() });
+});
+
 apiRouter.get("/order/:id", (req, res) => {
     const order = getOrder(req.params.id);
     if (!order) {
@@ -112,6 +128,16 @@ internalRouter.get("/pending-order", (_req, res) => {
         return;
     }
     res.json(order);
+});
+
+internalRouter.post("/inventory-snapshot", (req, res) => {
+    const { counts } = req.body as { counts?: unknown };
+    if (!counts || typeof counts !== "object" || Array.isArray(counts)) {
+        res.status(400).json({ error: "Expected { counts: Record<string, number> }" });
+        return;
+    }
+    setInventorySnapshot(counts as Record<string, number>);
+    res.status(204).end();
 });
 
 internalRouter.post("/order-result", (req, res) => {
