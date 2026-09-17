@@ -1,6 +1,6 @@
-const MAX_VISIBLE_ROWS = 40;
+const ITEMS_PER_PAGE = 40;
 
-// Firing all of a row batch's price lookups at once used to trip
+// Firing all of a page's price lookups at once used to trip
 // warframe.market's rate limiting on broad searches (e.g. "meso" ->
 // ~40 simultaneous /api/price calls) - stagger them through a small
 // concurrency-limited queue instead.
@@ -28,12 +28,12 @@ function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// The concurrency cap above shrinks how often a broad search (e.g. "meso",
-// ~40 rows) trips warframe.market's rate limiting, but doesn't guarantee
-// zero hits on a near-worst-case burst. Retry a couple of times with a
-// short backoff before actually giving up and showing "?" - makes a
-// transient rate-limit hit self-heal instead of needing the user to
-// manually narrow the search to work around it.
+// The concurrency cap above shrinks how often a broad search trips
+// warframe.market's rate limiting, but doesn't guarantee zero hits on a
+// near-worst-case burst. Retry a couple of times with a short backoff
+// before actually giving up and showing "?" - makes a transient
+// rate-limit hit self-heal instead of needing the user to manually
+// narrow the search to work around it.
 async function fetchPriceWithRetry(url, attempt = 0) {
     const res = await fetch(url);
     if (res.ok) return res.json();
@@ -47,8 +47,15 @@ const searchEl = document.getElementById("search");
 const listEl = document.getElementById("mod-list");
 const rowTemplate = document.getElementById("mod-row-template");
 const toastContainer = document.getElementById("toast-container");
+const typeFilterEl = document.getElementById("type-filter");
+const viewToggleEl = document.getElementById("view-toggle");
+const prevPageBtn = document.getElementById("prev-page");
+const nextPageBtn = document.getElementById("next-page");
+const pageIndicatorEl = document.getElementById("page-indicator");
 
 let allItems = [];
+let typeFilter = "all";
+let currentPage = 1;
 
 function setStatus(text) {
     statusEl.textContent = text;
@@ -68,25 +75,37 @@ async function loadItems() {
         const res = await fetch("/api/items");
         if (!res.ok) throw new Error((await res.json()).error || res.statusText);
         allItems = await res.json();
-        setStatus(`${allItems.length} items loaded.`);
         render();
     } catch (err) {
         setStatus(`Failed to load items: ${err.message}`);
     }
 }
 
-function render() {
+function getFilteredItems() {
     const query = searchEl.value.trim().toLowerCase();
-    const matches = query ? allItems.filter(m => m.name.toLowerCase().includes(query)) : allItems;
+    return allItems.filter(item => {
+        if (typeFilter !== "all" && item.type !== typeFilter) return false;
+        if (query && !item.name.toLowerCase().includes(query)) return false;
+        return true;
+    });
+}
+
+function render() {
+    const matches = getFilteredItems();
+    const totalPages = Math.max(1, Math.ceil(matches.length / ITEMS_PER_PAGE));
+    currentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    const pageItems = matches.slice(start, start + ITEMS_PER_PAGE);
+
     listEl.innerHTML = "";
-    matches.slice(0, MAX_VISIBLE_ROWS).forEach(item => renderRow(item));
-    if (matches.length > MAX_VISIBLE_ROWS) {
-        setStatus(`${matches.length} matches, showing first ${MAX_VISIBLE_ROWS} - refine your search.`);
-    } else if (query) {
-        setStatus(`${matches.length} matches.`);
-    } else {
-        setStatus(`${allItems.length} items loaded.`);
-    }
+    pageItems.forEach(item => renderRow(item));
+
+    setStatus(matches.length === 0 ? "No matches." : `${matches.length} item${matches.length === 1 ? "" : "s"} match.`);
+
+    pageIndicatorEl.textContent = `Page ${currentPage} of ${totalPages}`;
+    prevPageBtn.disabled = currentPage <= 1;
+    nextPageBtn.disabled = currentPage >= totalPages;
 }
 
 function renderRow(item) {
@@ -172,5 +191,37 @@ function pollOrder(orderId, item, direction, buyBtn, sellBtn) {
     }, 1500);
 }
 
-searchEl.addEventListener("input", render);
+searchEl.addEventListener("input", () => {
+    currentPage = 1;
+    render();
+});
+
+typeFilterEl.addEventListener("click", e => {
+    const btn = e.target.closest(".filter-btn");
+    if (!btn) return;
+    typeFilterEl.querySelectorAll(".filter-btn").forEach(b => b.classList.toggle("active", b === btn));
+    typeFilter = btn.dataset.type;
+    currentPage = 1;
+    render();
+});
+
+// Grid vs list is pure CSS on the shared row markup - toggling it never
+// needs to re-render/re-fetch prices, just restyle what's already there.
+viewToggleEl.addEventListener("click", e => {
+    const btn = e.target.closest(".filter-btn");
+    if (!btn) return;
+    viewToggleEl.querySelectorAll(".filter-btn").forEach(b => b.classList.toggle("active", b === btn));
+    listEl.classList.toggle("grid-view", btn.dataset.view === "grid");
+});
+
+prevPageBtn.addEventListener("click", () => {
+    currentPage--;
+    render();
+});
+
+nextPageBtn.addEventListener("click", () => {
+    currentPage++;
+    render();
+});
+
 loadItems();

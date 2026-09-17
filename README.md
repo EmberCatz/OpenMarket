@@ -49,6 +49,13 @@ the same stack means the mapping/pricing/order logic here could realistically
 be adapted into a page inside SpaceNinjaServer's own WebUI by someone who
 wanted that, rather than needing a rewrite.
 
+## Frontend
+
+Real pagination (40 items/page — 2000+ items exist across all three
+categories), a type filter (All/Mods/Arcanes/Relics), and a List/Grid view
+toggle. Grid view is pure CSS on the same row markup as List — toggling
+between them never re-fetches prices.
+
 ## Setup
 
 1. **Backend**

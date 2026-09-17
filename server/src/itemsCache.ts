@@ -19,10 +19,13 @@
 // lookup (which needs the right warframe.market order subtype) and the
 // sell call (which needs the right SpaceNinjaServer Items.<category> key)
 // don't have to re-derive them from the item's tags/path again later.
+// `type` is the UI-facing grouping (Mods and Arcanes share `category`
+// "Upgrades" server-side, but a user filtering the shop wants them split).
 
 import { fetchAllItems, type WfmItemEntry } from "./warframeMarketApi.js";
 
 export type ItemCategory = "Upgrades" | "MiscItems";
+export type ItemType = "mod" | "arcane" | "relic";
 
 export interface MarketItem {
     slug: string;
@@ -30,6 +33,7 @@ export interface MarketItem {
     name: string;
     icon: string | null;
     category: ItemCategory;
+    type: ItemType;
     defaultSubtype: string; // the warframe.market order "subtype" this item's price/grant corresponds to
 }
 
@@ -48,13 +52,26 @@ function classify(item: WfmItemEntry): MarketItem | null {
     const en = item.i18n.en;
     if (!en || !item.gameRef) return null;
 
-    if ((item.tags.includes("mod") || item.tags.includes("arcane_enhancement")) && !item.tags.includes("riven")) {
+    if (item.tags.includes("arcane_enhancement") && !item.tags.includes("riven")) {
         return {
             slug: item.slug,
             gameRef: item.gameRef,
             name: en.name,
             icon: iconUrl(en.icon),
             category: "Upgrades",
+            type: "arcane",
+            defaultSubtype: "regular"
+        };
+    }
+
+    if (item.tags.includes("mod") && !item.tags.includes("riven")) {
+        return {
+            slug: item.slug,
+            gameRef: item.gameRef,
+            name: en.name,
+            icon: iconUrl(en.icon),
+            category: "Upgrades",
+            type: "mod",
             defaultSubtype: "regular"
         };
     }
@@ -66,6 +83,7 @@ function classify(item: WfmItemEntry): MarketItem | null {
             name: `${en.name} (Intact)`,
             icon: iconUrl(en.icon),
             category: "MiscItems",
+            type: "relic",
             defaultSubtype: "intact"
         };
     }

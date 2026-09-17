@@ -16,9 +16,28 @@
 </header>
 
 <main>
-    <input id="search" type="text" placeholder="Search mods, arcanes, relics..." autocomplete="off" />
+    <div class="toolbar">
+        <input id="search" type="text" placeholder="Search mods, arcanes, relics..." autocomplete="off" />
+        <div id="type-filter" class="filter-group" role="group" aria-label="Filter by type">
+            <button class="filter-btn active" data-type="all">All</button>
+            <button class="filter-btn" data-type="mod">Mods</button>
+            <button class="filter-btn" data-type="arcane">Arcanes</button>
+            <button class="filter-btn" data-type="relic">Relics</button>
+        </div>
+        <div id="view-toggle" class="filter-group" role="group" aria-label="Switch view">
+            <button class="filter-btn active" data-view="list">List</button>
+            <button class="filter-btn" data-view="grid">Grid</button>
+        </div>
+    </div>
+
     <div id="status" class="status"></div>
     <div id="mod-list" class="mod-list"></div>
+
+    <div id="pagination" class="pagination">
+        <button id="prev-page" class="btn btn-page">&larr; Prev</button>
+        <span id="page-indicator"></span>
+        <button id="next-page" class="btn btn-page">Next &rarr;</button>
+    </div>
 </main>
 
 <div id="toast-container"></div>
