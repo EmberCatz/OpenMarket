@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getMods, findModByGameRef } from "./modsCache.js";
+import { getItems, findItemByGameRef } from "./itemsCache.js";
 import { getPrice } from "./priceCache.js";
 import { enqueueOrder, popPendingOrder, reportOrderResult, getOrder } from "./orderQueue.js";
 
@@ -8,17 +8,18 @@ export const internalRouter = Router();
 
 // --- Frontend-facing ---
 
-apiRouter.get("/mods", async (_req, res) => {
+apiRouter.get("/items", async (_req, res) => {
     try {
-        res.json(await getMods());
+        res.json(await getItems());
     } catch (err) {
-        res.status(502).json({ error: `Failed to load mods from warframe.market: ${(err as Error).message}` });
+        res.status(502).json({ error: `Failed to load items from warframe.market: ${(err as Error).message}` });
     }
 });
 
 apiRouter.get("/price/:slug", async (req, res) => {
+    const subtype = typeof req.query.subtype === "string" ? req.query.subtype : "regular";
     try {
-        res.json(await getPrice(req.params.slug));
+        res.json(await getPrice(req.params.slug, subtype));
     } catch (err) {
         res.status(502).json({ error: `Failed to load price from warframe.market: ${(err as Error).message}` });
     }
@@ -30,12 +31,12 @@ apiRouter.post("/order", async (req, res) => {
         res.status(400).json({ error: "Expected { gameRef, direction: 'buy'|'sell', price }" });
         return;
     }
-    const mod = await findModByGameRef(gameRef);
-    if (!mod) {
-        res.status(404).json({ error: "Unknown mod ItemType path (not in the current warframe.market Mods list)" });
+    const item = await findItemByGameRef(gameRef);
+    if (!item) {
+        res.status(404).json({ error: "Unknown ItemType path (not in the current warframe.market items list)" });
         return;
     }
-    const order = enqueueOrder(direction, gameRef, mod.name, Math.round(price));
+    const order = enqueueOrder(direction, gameRef, item.name, Math.round(price), item.category);
     res.json({ orderId: order.id });
 });
 

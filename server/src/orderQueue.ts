@@ -4,6 +4,7 @@
 // mode (see ../../README.md).
 
 import { randomUUID } from "node:crypto";
+import type { ItemCategory } from "./itemsCache.js";
 
 export type OrderDirection = "buy" | "sell";
 export type OrderStatus = "pending" | "processing" | "done" | "failed";
@@ -14,6 +15,7 @@ export interface Order {
     gameRef: string;
     name: string;
     price: number;
+    category: ItemCategory; // which Items.<category> key the sell call needs - buy ignores this
     status: OrderStatus;
     detail?: string;
     createdAt: number;
@@ -26,13 +28,20 @@ const pendingQueue: string[] = [];
 // leave the order stuck "processing" forever - the frontend times it out.
 const STALE_PROCESSING_MS = 30_000;
 
-export function enqueueOrder(direction: OrderDirection, gameRef: string, name: string, price: number): Order {
+export function enqueueOrder(
+    direction: OrderDirection,
+    gameRef: string,
+    name: string,
+    price: number,
+    category: ItemCategory
+): Order {
     const order: Order = {
         id: randomUUID(),
         direction,
         gameRef,
         name,
         price,
+        category,
         status: "pending",
         createdAt: Date.now()
     };

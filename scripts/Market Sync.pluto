@@ -16,14 +16,16 @@
 -- round trips (item granted/removed, platinum debited/credited) verified
 -- through the real web UI, not just in isolation.
 --
--- Scope: Mods (Upgrades category) only, plain unranked/unfused copies.
--- Both directions operate purely on the mod's ItemType path - confirmed
--- from SpaceNinjaServer's actual source (its sellController.ts's Upgrades
--- branch: an entry {String=<path>, Count=N>0} decrements N stacked copies
--- by path, the same shape its addItems accepts to grant them) - no oid/
--- inventory.php lookup needed, unlike unique-instance gear (Suits,
--- weapons, etc), which would need a specific owned copy's real database id
--- instead of a bare type path.
+-- Scope: Mods + Arcanes (category "Upgrades") and Intact Relics (category
+-- "MiscItems"). All three operate purely on the item's ItemType path -
+-- confirmed from SpaceNinjaServer's actual source (its sellController.ts's
+-- Upgrades/MiscItems branches both accept an entry {String=<path>,
+-- Count=N>0} that decrements N stacked copies by path, the same shape its
+-- addItems accepts to grant them) - no oid/inventory.php lookup needed,
+-- unlike unique-instance gear (Suits, weapons, etc), which would need a
+-- specific owned copy's real database id instead of a bare type path. The
+-- backend tells us which Items.<category> key to use per order
+-- (order.category).
 --
 -- Lifecycle: fire-and-forget polling loop (`repeat ... until yield()`) -
 -- no persistent client-side state is ever set, so there's nothing to
@@ -117,8 +119,14 @@ end
 
 -- Remove the item (SellPrice=0 -> no real-currency side effect, matches
 -- SpaceNinjaServer's own WebUI "bin icon" behavior), then credit platinum
--- only if the removal actually succeeded.
+-- only if the removal actually succeeded. order.category picks which
+-- Items.<key> SpaceNinjaServer expects ("Upgrades" for mods/arcanes,
+-- "MiscItems" for relics) - both branches decrement by ItemType path the
+-- same way, only the wrapping key differs.
 local function doSell(order)
+    local items = {}
+    items[order.category] = { { String = order.gameRef, Count = 1 } }
+
     local sellOk, sellBody, sellStatus = pcall(function()
         return http.request(snsUrl("/api/sell.php", "wsid=0"), {
             method = "POST",
@@ -126,7 +134,7 @@ local function doSell(order)
             body = json.encode({
                 SellCurrency = "SC_RegularCredits",
                 SellPrice = 0,
-                Items = { Upgrades = { { String = order.gameRef, Count = 1 } } },
+                Items = items,
             }),
             dont_reuse = true,
             dont_make_reusable = true,

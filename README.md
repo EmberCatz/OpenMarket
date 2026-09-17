@@ -14,10 +14,13 @@ SpaceNinjaServer. Requires an OpenWF Bootstrapper client and a
 SpaceNinjaServer instance you already control — it does not work against
 the real Warframe servers.
 
-**Scope: Mods + Arcanes**, plain unranked/unfused copies. Both route
-through SpaceNinjaServer's identical `addMods()`/`RawUpgrades` mechanism
-server-side, so they share one code path. See
-[Known limitations](#known-limitations) for what's not covered yet.
+**Scope: Mods + Arcanes + Intact Relics.** Mods/Arcanes route through
+SpaceNinjaServer's identical `addMods()`/`RawUpgrades` mechanism
+server-side (category `Upgrades`); Relics are plain `MiscItems`-category
+stackable grants (Intact quality only — warframe.market's `gameRef` for a
+relic is the base path with no refinement suffix, so this app appends
+`Bronze` itself). See [Known limitations](#known-limitations) for what's
+not covered yet.
 
 ## Architecture
 
@@ -78,12 +81,14 @@ Read directly from SpaceNinjaServer's source, not guessed:
 - **Buy**: `POST /custom/addItems` `[{ItemType, ItemCount: 1}]`, then
   `POST /custom/addCurrency` `{currency:"PremiumCredits", delta: -price}`.
 - **Sell**: `POST /api/sell.php` `{SellCurrency:"SC_RegularCredits",
-  SellPrice:0, Items:{Upgrades:[{String:<ItemType path>, Count:1}]}}`,
-  then `POST /custom/addCurrency` with a positive delta. This is the
-  **real Warframe client's own** sell-to-market endpoint (not a
-  SpaceNinjaServer-specific admin route) — SpaceNinjaServer's own WebUI
-  "bin icon" delete button calls it the same way with `SellPrice: 0`. For
-  the `Upgrades` (mods) category specifically, an entry with a `String`
+  SellPrice:0, Items:{<category>:[{String:<ItemType path>, Count:1}]}}`,
+  then `POST /custom/addCurrency` with a positive delta. `<category>` is
+  `Upgrades` for mods/arcanes or `MiscItems` for relics — the backend
+  tags each item with its category so `Market Sync.pluto` doesn't have to
+  guess. This is the **real Warframe client's own** sell-to-market
+  endpoint (not a SpaceNinjaServer-specific admin route) —
+  SpaceNinjaServer's own WebUI "bin icon" delete button calls it the same
+  way with `SellPrice: 0`. For both categories, an entry with a `String`
   that's an `ItemType` path (not a bare database id) and `Count > 0`
   decrements that many stacked copies **by path** — no need to look up a
   specific owned copy's id first, unlike unique-instance gear.
@@ -98,13 +103,19 @@ Read directly from SpaceNinjaServer's source, not guessed:
   `/v2/item/serration` → `gameRef: "/Lotus/Upgrades/Mods/Rifle/
   WeaponDamageAmountMod"`) is directly the real client `ItemType` path —
   no separate mapping table is needed to go from a market item to what to
-  grant/remove.
+  grant/remove. For relics specifically, `gameRef` is the BASE path with
+  no refinement suffix — this app appends `Bronze` (Intact) itself.
+- **CONFIRMED WORKING end-to-end for all three categories (2026-09-17)** —
+  Mods, Arcanes, and Relics each verified with a real in-game buy + sell
+  round trip through this UI against a live SpaceNinjaServer instance.
 
 ## Known limitations
 
-- Mods + Arcanes only — no weapon/warframe skins, relics, or prime parts
-  yet (each needs either database-id-based unique-instance handling, or
-  isn't a warframe.market item at all).
+- No weapon/warframe skins or prime parts yet — unique-instance gear needs
+  `/api/inventory.php`-based database-id resolution, a bigger lift than
+  the path-based items above.
+- Relics are Intact quality only — no Exceptional/Flawless/Radiant
+  refinement selection yet.
 - Selling only removes a plain unranked/unfused stacked copy — it can't
   target a specific fused/leveled mod or ranked arcane instance.
 - No persistence — a backend restart drops any in-flight order. Fine for
