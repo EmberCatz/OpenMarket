@@ -1,7 +1,12 @@
-// In-memory cache of warframe.market's Mods category, refreshed hourly.
-// v1 scope is Mods only - see ../../README.md and the plan this was built
-// from for why (buy/sell are symmetric ItemType-path operations for mods,
-// no oid resolution needed, unlike unique-instance gear).
+// In-memory cache of warframe.market's Mods + Arcanes, refreshed hourly.
+// Both categories route through SpaceNinjaServer's identical addMods()/
+// RawUpgrades mechanism server-side (confirmed from source: Arcane
+// Energize's gameRef, "/Lotus/Upgrades/CosmeticEnhancers/Utility/...",
+// falls under the same addItem() dispatch branch as plain mod paths), so
+// buy/sell are symmetric ItemType-path operations for both, no oid
+// resolution needed - unlike unique-instance gear (weapons, warframes,
+// skins), which is still out of scope. warframe.market tags arcanes as
+// "arcane_enhancement", not "arcane".
 
 import { fetchAllItems, type WfmItemEntry } from "./warframeMarketApi.js";
 
@@ -32,7 +37,11 @@ function toModInfo(item: WfmItemEntry): ModInfo | null {
 async function refresh(): Promise<ModInfo[]> {
     const all = await fetchAllItems();
     cache = all
-        .filter(item => item.tags.includes("mod") && !item.tags.includes("riven"))
+        .filter(
+            item =>
+                (item.tags.includes("mod") || item.tags.includes("arcane_enhancement")) &&
+                !item.tags.includes("riven")
+        )
         .map(toModInfo)
         .filter((m): m is ModInfo => m !== null);
     cachedAt = Date.now();

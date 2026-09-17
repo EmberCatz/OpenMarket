@@ -14,7 +14,9 @@ SpaceNinjaServer. Requires an OpenWF Bootstrapper client and a
 SpaceNinjaServer instance you already control — it does not work against
 the real Warframe servers.
 
-**v1 scope: Mods only**, plain unranked/unfused copies. See
+**Scope: Mods + Arcanes**, plain unranked/unfused copies. Both route
+through SpaceNinjaServer's identical `addMods()`/`RawUpgrades` mechanism
+server-side, so they share one code path. See
 [Known limitations](#known-limitations) for what's not covered yet.
 
 ## Architecture
@@ -100,11 +102,11 @@ Read directly from SpaceNinjaServer's source, not guessed:
 
 ## Known limitations
 
-- Mods only — no weapon/warframe skins, arcanes, relics, or prime parts
+- Mods + Arcanes only — no weapon/warframe skins, relics, or prime parts
   yet (each needs either database-id-based unique-instance handling, or
   isn't a warframe.market item at all).
 - Selling only removes a plain unranked/unfused stacked copy — it can't
-  target a specific fused/leveled mod instance.
+  target a specific fused/leveled mod or ranked arcane instance.
 - No persistence — a backend restart drops any in-flight order. Fine for
   a personal single-account tool; add real storage first if you want to
   build on top of this.
