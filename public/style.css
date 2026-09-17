@@ -210,6 +210,56 @@ main {
     color: var(--sell);
 }
 
+/* No explicit `display` here either - a <button> with only text content
+   and no display override doesn't fight [hidden], same reasoning as
+   .owned-count above. */
+.owned-ranks-toggle {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 0.72rem;
+    padding: 0;
+    text-align: left;
+    cursor: pointer;
+    width: fit-content;
+}
+
+.owned-ranks-toggle:hover {
+    text-decoration: underline;
+}
+
+/* Nested "you own N at rank X" rows under an expanded mod/arcane row -
+   built dynamically in app.js (not from the row template), inserted as
+   a sibling right after .mod-row, same pattern .set-children uses for
+   Prime set parts. */
+.owned-ranks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: -2px 0 0 40px;
+}
+
+.owned-ranks-list[hidden] {
+    display: none;
+}
+
+.owned-rank-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+}
+
+.owned-rank-row .btn-sell {
+    padding: 4px 10px;
+    font-size: 0.75rem;
+}
+
 .rank-stepper {
     display: flex;
     align-items: center;

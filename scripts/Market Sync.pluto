@@ -44,10 +44,10 @@
 -- a plain unranked copy - the same mechanism SpaceNinjaServer's own WebUI
 -- uses for its "acquire mod max" flow (confirmed from source, not
 -- invented here). A ranked grant lands in the unique-instance Upgrades
--- collection (not RawUpgrades), which is why SELL deliberately does NOT
--- support rank>0 - removing a specific ranked copy needs its real
--- database id (an /api/inventory.php lookup), not built. The backend
--- enforces this (order.rank is always 0 for sell orders).
+-- collection (not RawUpgrades) - selling a specific ranked copy needs its
+-- real database id, which order.sellOid carries when present (see the
+-- ranked-copy breakdown section below); doSell() branches on that rather
+-- than order.rank.
 --
 -- Prime sets: order.parts (buy-only) is a list of {gameRef, category}
 -- member items - a set's own gameRef is never granted (it's the finished
@@ -75,6 +75,24 @@
 -- here just skips that cycle and retries next time, which at that flake
 -- rate gets a successful sync within 1-2 cycles the large majority of the
 -- time.
+--
+-- Ranked-copy breakdown + sell-by-oid, CONFIRMED WORKING (2026-09-17).
+-- The same inventory.php read also parses the response's "Upgrades"
+-- array (unique-instance ranked mod/arcane copies, separate from the
+-- plain-stack RawUpgrades above) and reports each instance's rank + real
+-- database id (oid) to the backend - so owning e.g. a rank 0, rank 3, and
+-- max-rank copy of the same mod at once shows as 3 distinct lines instead
+-- of one ambiguous count. The "Fingerprint" field this script sends on a
+-- ranked grant is stored server-side as "UpgradeFingerprint" on that
+-- Upgrades entry (same {"lvl":N} shape) - confirmed from source, and
+-- selling a SPECIFIC instance by its oid (a String with no "/" in it)
+-- takes a completely different sell.php code path
+-- (`inventory.Upgrades.pull({_id: String})`) than the plain path+count
+-- decrement every other sell here uses. Verified live with
+-- "Market Ranked Sell Probe.pluto": granted a rank-3 Serration, found its
+-- exact oid via UpgradeFingerprint, sold it BY OID, then confirmed the
+-- Upgrades entry count dropped by exactly 1 (not just "something
+-- changed").
 
 local { http, json } = require "pluto:*"
 
@@ -145,6 +163,40 @@ local function flattenOwnedCounts(inv)
     return counts
 end
 
+-- Parses inv.Upgrades (ranked/unique-instance mod+arcane copies) into
+-- {ItemType: {rank, oid}[]} - the inverse of what doBuy() writes via
+-- Fingerprint={"lvl":N} on the grant (stored server-side as
+-- UpgradeFingerprint, same shape). ItemId is a Mongo-style oid wrapper
+-- ({"$oid": "..."} or the legacy {"$id": "..."}), not a bare string.
+-- Entries this script can't make sense of (no ItemId at all) are skipped
+-- rather than guessed at - better to under-report than sell the wrong
+-- thing later.
+local function extractRankedInstances(inv)
+    local result = {}
+    if inv.Upgrades then
+        for _, entry in inv.Upgrades do
+            local oid = nil
+            if entry.ItemId then
+                oid = entry.ItemId["$oid"] or entry.ItemId["$id"]
+            end
+            if oid then
+                local rank = 0
+                if entry.UpgradeFingerprint then
+                    local decodeOk, fingerprint = pcall(json.decode, entry.UpgradeFingerprint)
+                    if decodeOk and fingerprint.lvl then
+                        rank = fingerprint.lvl
+                    end
+                end
+                if not result[entry.ItemType] then
+                    result[entry.ItemType] = {}
+                end
+                table.insert(result[entry.ItemType], { rank = rank, oid = oid })
+            end
+        end
+    end
+    return result
+end
+
 local function syncInventorySnapshot()
     local ok, body, status = pcall(function()
         return http.request(snsUrl("/api/inventory.php", "wsid=0"), {
@@ -168,7 +220,7 @@ local function syncInventorySnapshot()
         return http.request(backendUrl("/internal/inventory-snapshot"), {
             method = "POST",
             headers = { ["Content-Type"] = "application/json" },
-            body = json.encode({ counts = flattenOwnedCounts(inv) }),
+            body = json.encode({ counts = flattenOwnedCounts(inv), ranked = extractRankedInstances(inv) }),
             dont_reuse = true,
             dont_make_reusable = true,
         })
@@ -239,23 +291,40 @@ end
 
 -- Remove the item (SellPrice=0 -> no real-currency side effect, matches
 -- SpaceNinjaServer's own WebUI "bin icon" behavior), then credit platinum
--- only if the removal actually succeeded. order.category picks which
--- Items.<key> SpaceNinjaServer expects ("Upgrades" for mods/arcanes,
--- "MiscItems" for relics) - both branches decrement by ItemType path the
--- same way, only the wrapping key differs.
+-- only if the removal actually succeeded.
+--
+-- order.sellOid (a specific RANKED copy only) sells by bare database id
+-- instead of ItemType path+count - sell.php's Upgrades branch treats a
+-- String with no "/" in it as an oid and deletes that exact instance
+-- (`inventory.Upgrades.pull({_id: String})`), confirmed from
+-- sellController.ts. Otherwise order.category picks which Items.<key>
+-- SpaceNinjaServer expects for the plain path+count sell ("Upgrades" for
+-- rank-0 mods/arcanes, "MiscItems" for relics, "Recipes" for Prime parts)
+-- - all three decrement by ItemType path the same way, only the wrapping
+-- key differs.
 local function doSell(order)
-    local items = {}
-    items[order.category] = { { String = order.gameRef, Count = 1 } }
+    local sellPayload
+    if order.sellOid then
+        sellPayload = {
+            SellCurrency = "SC_RegularCredits",
+            SellPrice = 0,
+            Items = { Upgrades = { { String = order.sellOid, Count = 1 } } },
+        }
+    else
+        local items = {}
+        items[order.category] = { { String = order.gameRef, Count = 1 } }
+        sellPayload = {
+            SellCurrency = "SC_RegularCredits",
+            SellPrice = 0,
+            Items = items,
+        }
+    end
 
     local sellOk, sellBody, sellStatus = pcall(function()
         return http.request(snsUrl("/api/sell.php", "wsid=0"), {
             method = "POST",
             headers = { ["Content-Type"] = "text/plain" }, -- NOT application/json - see Market Sell Probe.pluto's header note for why
-            body = json.encode({
-                SellCurrency = "SC_RegularCredits",
-                SellPrice = 0,
-                Items = items,
-            }),
+            body = json.encode(sellPayload),
             dont_reuse = true,
             dont_make_reusable = true,
         })

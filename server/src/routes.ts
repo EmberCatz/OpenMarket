@@ -2,7 +2,15 @@ import { Router } from "express";
 import { getItems, findItemByGameRef, findItemBySlug, resolveSellGameRef, RELIC_REFINEMENT_SUFFIXES } from "./itemsCache.js";
 import { getPrice } from "./priceCache.js";
 import { enqueueOrder, popPendingOrder, reportOrderResult, getOrder } from "./orderQueue.js";
-import { setInventorySnapshot, getOwnedCount, hasInventorySnapshot } from "./inventorySnapshot.js";
+import {
+    setInventorySnapshot,
+    getOwnedCount,
+    hasInventorySnapshot,
+    setRankedInstances,
+    getOwnedRanks,
+    takeOidForRank,
+    type RankedInstance
+} from "./inventorySnapshot.js";
 
 export const apiRouter = Router();
 export const internalRouter = Router();
@@ -64,14 +72,37 @@ apiRouter.post("/order", async (req, res) => {
         return;
     }
 
+    // Selling a SPECIFIC ranked mod/arcane copy - a completely different
+    // path than the plain rank-0 sell below, since a ranked copy is a
+    // unique-instance database record (no plain path+count decrement can
+    // reach it). Resolves a real owned copy's oid from Market Sync.pluto's
+    // last inventory sync and hands it to Market Sync.pluto directly -
+    // see inventorySnapshot.ts's module comment for the full mechanism.
+    if (direction === "sell" && item.type !== "relic" && typeof rank === "number" && rank > 0) {
+        if (item.maxRank === null || rank > item.maxRank) {
+            res.status(400).json({ error: `Invalid rank ${rank} for ${item.name} (max ${item.maxRank ?? 0})` });
+            return;
+        }
+        const oid = takeOidForRank(item.gameRef, rank);
+        if (!oid) {
+            res.status(400).json({
+                error: `No known rank ${rank} copy of ${item.name} to sell - it may have already been sold, or Market Sync.pluto hasn't synced inventory yet.`
+            });
+            return;
+        }
+        const order = enqueueOrder(direction, item.gameRef, `${item.name} (Rank ${rank})`, Math.round(price), item.category, rank, null, oid);
+        res.json({ orderId: order.id });
+        return;
+    }
+
     // Resolve what actually gets sent to Market Sync.pluto - it always
     // sees a fully-resolved gameRef + display name, never refinement/rank
     // logic itself.
     let finalGameRef = item.gameRef;
     let displayName = item.name;
-    // Selling a specific RANKED mod/arcane copy isn't supported yet (would
-    // need /api/inventory.php-based oid resolution) - sell always targets
-    // the plain rank-0 stock regardless of what rank was requested/shown.
+    // Selling a PLAIN (rank-0) mod/arcane copy always targets the plain
+    // rank-0 stock - the branch above already intercepted a specific-rank
+    // sell request before reaching here.
     let effectiveRank = 0;
 
     if (item.type === "relic") {
@@ -110,6 +141,20 @@ apiRouter.get("/owned/:slug", async (req, res) => {
     res.json({ owned: getOwnedCount(gameRef), known: hasInventorySnapshot() });
 });
 
+// Breaks out ranked (rank > 0) owned copies by exact rank, e.g. owning a
+// rank 0, rank 3, and max-rank Serration at once would otherwise all
+// collapse into one ambiguous "Owned: N" (which only ever reflects the
+// rank-0 RawUpgrades count anyway - ranked copies live in a completely
+// separate collection). Only meaningful for mods/arcanes.
+apiRouter.get("/owned-ranks/:slug", async (req, res) => {
+    const item = await findItemBySlug(req.params.slug);
+    if (!item) {
+        res.status(404).json({ error: "Unknown slug" });
+        return;
+    }
+    res.json({ ranks: getOwnedRanks(item.gameRef) });
+});
+
 apiRouter.get("/order/:id", (req, res) => {
     const order = getOrder(req.params.id);
     if (!order) {
@@ -131,12 +176,23 @@ internalRouter.get("/pending-order", (_req, res) => {
 });
 
 internalRouter.post("/inventory-snapshot", (req, res) => {
-    const { counts } = req.body as { counts?: unknown };
+    const { counts, ranked } = req.body as { counts?: unknown; ranked?: unknown };
     if (!counts || typeof counts !== "object" || Array.isArray(counts)) {
-        res.status(400).json({ error: "Expected { counts: Record<string, number> }" });
+        res.status(400).json({ error: "Expected { counts: Record<string, number>, ranked?: Record<string, {rank,oid}[]> }" });
         return;
     }
     setInventorySnapshot(counts as Record<string, number>);
+    // Pluto's json.encode serializes an empty Lua table as "[]" (array),
+    // not "{}" (object) - there's no ranked mods owned at all in that
+    // case, so treat an empty array the same as an empty object rather
+    // than rejecting it.
+    if (ranked && typeof ranked === "object") {
+        if (!Array.isArray(ranked)) {
+            setRankedInstances(ranked as Record<string, RankedInstance[]>);
+        } else if (ranked.length === 0) {
+            setRankedInstances({});
+        }
+    }
     res.status(204).end();
 });
 

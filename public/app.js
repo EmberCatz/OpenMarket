@@ -146,6 +146,7 @@ function render() {
         const row = renderRow(item);
         listEl.appendChild(row);
         if (children) attachSetChildren(row, children);
+        attachOwnedRanksDisplay(row, item); // no-ops internally for non-rankable items
     });
 
     setStatus(rows.length === 0 ? "No matches." : `${rows.length} item${rows.length === 1 ? "" : "s"} match.`);
@@ -179,6 +180,133 @@ function attachSetChildren(row, childItems) {
     });
 
     row.after(childrenEl);
+}
+
+// Ranked (rank > 0) mod/arcane copies are unique-instance database
+// records, invisible to the plain "Owned: N" count (which only ever
+// reflects the rank-0 RawUpgrades stack - see fetchOwned() inside
+// renderRow) - owning a rank 0, rank 3, and max-rank copy at once would
+// otherwise collapse into one ambiguous number. This shows each owned
+// rank as its own line via a toggle, with its own Sell button that
+// removes exactly ONE instance at that exact rank - the server resolves
+// which real database id to delete (routes.ts's takeOidForRank()), this
+// function never sees an oid itself. No-ops for anything that isn't
+// rankable at all (relics, Prime parts/sets - item.maxRank is null).
+function attachOwnedRanksDisplay(row, item) {
+    if (item.maxRank === null || item.maxRank <= 0) return;
+
+    const toggleBtn = row.querySelector(".owned-ranks-toggle");
+    let listEl = null;
+    let currentRanks = [];
+
+    function updateToggleLabel() {
+        const totalOwned = currentRanks.reduce((sum, r) => sum + r.count, 0);
+        const expanded = listEl && !listEl.hidden;
+        const arrow = expanded ? "▾" : "▸";
+        const noun = currentRanks.length === 1 ? "another rank" : "other ranks";
+        toggleBtn.textContent = `${arrow} ${totalOwned} owned at ${noun}`;
+    }
+
+    function renderList() {
+        listEl.innerHTML = "";
+        currentRanks.forEach(({ rank, count }) => {
+            const line = document.createElement("div");
+            line.className = "owned-rank-row";
+
+            const label = document.createElement("span");
+            label.textContent = `Rank ${rank}${rank === item.maxRank ? " (Max)" : ""} — Owned: ${count}`;
+
+            const sellBtn = document.createElement("button");
+            sellBtn.className = "btn btn-sell";
+            sellBtn.textContent = "Sell";
+            sellBtn.addEventListener("click", () => sellOneAtRank(rank, sellBtn));
+
+            line.appendChild(label);
+            line.appendChild(sellBtn);
+            listEl.appendChild(line);
+        });
+    }
+
+    function refresh() {
+        scheduleFetch(() =>
+            fetchJsonWithRetry(`/api/owned-ranks/${encodeURIComponent(item.slug)}`)
+                .then(info => {
+                    currentRanks = (info.ranks || []).filter(r => r.count > 0);
+                    if (currentRanks.length === 0) {
+                        toggleBtn.hidden = true;
+                        if (listEl) listEl.hidden = true;
+                        return;
+                    }
+                    toggleBtn.hidden = false;
+                    if (!listEl) {
+                        listEl = document.createElement("div");
+                        listEl.className = "owned-ranks-list";
+                        listEl.hidden = true;
+                        row.after(listEl);
+                        toggleBtn.addEventListener("click", () => {
+                            listEl.hidden = !listEl.hidden;
+                            updateToggleLabel();
+                        });
+                    }
+                    renderList();
+                    updateToggleLabel();
+                })
+                .catch(() => {
+                    // Secondary display, not the main price/owned-count path -
+                    // fail quietly rather than adding another toast for it.
+                })
+        );
+    }
+
+    async function sellOneAtRank(rank, btnEl) {
+        if (!confirm(`Sell your rank ${rank} copy of "${item.name}"? This removes it from your inventory.`)) return;
+        btnEl.disabled = true;
+        try {
+            const priceInfo = await fetchJsonWithRetry(`/api/price/${encodeURIComponent(item.slug)}?subtype=regular&rank=${rank}`);
+            if (priceInfo.platinum == null) {
+                toast(`No known price for ${item.name} at rank ${rank} - try again in a moment.`, false);
+                btnEl.disabled = false;
+                return;
+            }
+            const res = await fetch("/api/order", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ gameRef: item.gameRef, direction: "sell", price: priceInfo.platinum, rank })
+            });
+            const body = await res.json();
+            if (!res.ok) throw new Error(body.error || res.statusText);
+            toast(`Selling ${item.name} (Rank ${rank})...`, true);
+            pollRankedSell(body.orderId, rank, btnEl, refresh);
+        } catch (err) {
+            toast(`Order failed: ${err.message}`, false);
+            btnEl.disabled = false;
+        }
+    }
+
+    refresh();
+}
+
+function pollRankedSell(orderId, rank, btnEl, onSettled) {
+    const interval = setInterval(async () => {
+        try {
+            const res = await fetch(`/api/order/${orderId}`);
+            const order = await res.json();
+            if (order.status === "done") {
+                clearInterval(interval);
+                toast(`Sold rank ${rank} copy for ${order.price}p.`, true);
+                onSettled(); // re-fetches the breakdown, rebuilding the list with a fresh (enabled) button
+            } else if (order.status === "failed") {
+                clearInterval(interval);
+                toast(`Sell failed: ${order.detail || "unknown error"}`, false);
+                btnEl.disabled = false;
+            }
+            // else still pending/processing - keep polling
+        } catch (err) {
+            clearInterval(interval);
+            toast(`Lost track of order: ${err.message}`, false);
+            btnEl.disabled = false;
+        }
+    }, 1500);
 }
 
 function capitalize(s) {

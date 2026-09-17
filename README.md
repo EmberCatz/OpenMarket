@@ -75,10 +75,18 @@ List — toggling between them never re-fetches prices.
 
 Mods/Arcanes get a rank stepper (shown as e.g. "3 of 10") that live-updates
 the displayed price from warframe.market's per-rank order data — buying
-grants the exact rank shown. **Selling stays rank-0 only**: a specific
-ranked copy can't be sold back (would need `/api/inventory.php`-based
-database-id resolution), so Sell auto-disables whenever a nonzero rank is
-selected.
+grants the exact rank shown. The main row's own **Sell always targets
+rank-0 stock only**, auto-disabling whenever a nonzero rank is selected on
+the stepper — but see the owned-ranks breakdown below for selling a
+specific ranked copy you already own.
+
+Owning multiple ranks of the same mod/arcane at once (e.g. a rank 0, rank
+3, and max-rank Serration) would otherwise be invisible — the plain
+"Owned: N" count only ever reflects the rank-0 stack. A **"▸ N owned at
+other ranks"** toggle appears whenever you own any ranked copies, expanding
+to one line per rank ("Rank 3 — Owned: 1") each with its own Sell button
+that removes exactly that one instance — resolved server-side to a real
+database id, not a guess (see Confirmed HTTP mechanics below).
 
 Relics get the same +/- stepper, reused for a different purpose: cycling
 through Intact/Exceptional/Flawless/Radiant. Unlike rank, refinement isn't
@@ -156,6 +164,11 @@ real reliability on your own setup — 15 isolated calls, 4s apart, reports
 a success rate + response size + timing summary. Useful if the shop's
 "Owned: N" counts seem slow to show up; see Confirmed HTTP mechanics below
 for what a real run looked like.
+
+`scripts/Market Ranked Sell Probe.pluto` does the same for selling a
+specific ranked copy by its real database id — grants a rank-3 Serration,
+pauses so you can look, finds its exact id, pauses again, sells it, then
+confirms the count dropped by exactly one — confirmed working.
 
 ## Confirmed HTTP mechanics
 
@@ -243,6 +256,22 @@ Read directly from SpaceNinjaServer's source, not guessed:
   source: `addMiscItems`/`addRecipes`/`addMods` all guard this identically),
   so a stale/wrong/missing snapshot can at worst let a doomed Sell click
   through to a normal failed-order toast, never an actual oversell.
+- **Ranked-copy breakdown + sell-by-oid, CONFIRMED WORKING (2026-09-17).**
+  A ranked grant's `Fingerprint` field is stored server-side as
+  `UpgradeFingerprint` on that copy's `Upgrades` collection entry (same
+  `{"lvl":N}` shape) alongside its real database id (`ItemId`) - confirmed
+  from SpaceNinjaServer's actual `inventoryTypes.ts`/
+  `addItemsController.ts`, so parsing it back out on each inventory sync
+  is the exact inverse of what the grant already writes. Selling one
+  specific instance by that id takes a completely different `sell.php`
+  code path than every other sell here: a `String` with no `/` in it is
+  treated as a bare database id and deleted directly
+  (`inventory.Upgrades.pull({_id: String})`), confirmed from
+  `sellController.ts`. Verified live with `Market Ranked Sell
+  Probe.pluto`: granted a rank-3 Serration, found its exact id via
+  `UpgradeFingerprint`, sold it by that id, then confirmed the `Upgrades`
+  entry count for Serration dropped by exactly 1 (not just "something
+  changed").
 
 ## Known limitations
 
@@ -257,9 +286,9 @@ Read directly from SpaceNinjaServer's source, not guessed:
   tradeable on warframe.market at all — checked, not guessed — so
   Syndicate armor pieces are the concrete remaining candidate if this is
   ever picked up; would need `/api/inventory.php`-based oid resolution).
-- Selling a specific ranked mod/arcane copy isn't supported — Sell always
-  targets the plain rank-0 stock (same oid-resolution gap as unique-
-  instance gear above).
+- Selling a specific ranked mod/arcane copy is only possible through the
+  "▸ N owned at other ranks" breakdown, not the main row's Sell button
+  (which always targets plain rank-0 stock).
 - Prime Warframe parts only — weapon Prime parts are deferred (2-5 parts
   by weapon type vs. Warframes' fixed 4, more shapes to handle correctly).
 - Selling a full Prime set isn't supported — only individual parts can be

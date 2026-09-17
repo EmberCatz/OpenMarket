@@ -1,0 +1,201 @@
+-- Market Ranked Sell Probe
+--
+-- Isolated diagnostic for the two genuinely new mechanisms the "owned
+-- ranks" feature depends on: parsing GET /api/inventory.php's "Upgrades"
+-- array (ranked/unique-instance mod copies, each with an UpgradeFingerprint
+-- and a real database id) and selling ONE specific instance by that bare
+-- oid via POST /api/sell.php (a completely different code path than the
+-- already-proven plain path+count sell - sellController.ts's Upgrades
+-- branch treats a String with no "/" in it as an oid and does
+-- `inventory.Upgrades.pull({_id: String})` instead of decrementing a
+-- stack). Both are well-sourced (read directly from SpaceNinjaServer's
+-- addItemsController.ts/inventoryService.ts/sellController.ts, not
+-- guessed) but have never been exercised by any script in this project.
+--
+-- Test target: Serration at rank 3 (cheap, common, same target
+-- "Market Ranked Mod Probe.pluto" already uses for the grant side).
+--
+-- Test plan: grant a rank-3 copy (already-proven Fingerprint mechanism),
+-- pause so you can look, read inventory.php and find that exact instance
+-- by matching its UpgradeFingerprint to {"lvl":3}, extract its oid, sell
+-- it BY OID, pause again, then read inventory.php once more to confirm
+-- the Upgrades entry count for Serration dropped by exactly 1 (not just
+-- "some entry disappeared" - the exact expected count, so a wrong-oid
+-- deletion wouldn't silently look like success).
+--
+-- One-shot script (run once, print/chat the result, exit) - no loop, no
+-- persistent state.
+
+local { http, json } = require "pluto:*"
+
+local TEST_MOD_PATH = "/Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod" -- Serration
+local TEST_RANK = 3
+local PAUSE_MS = 15000
+
+local function reportChat(text)
+    print("Market Ranked Sell Probe: " .. text)
+    chat_system_reply("Market Ranked Sell Probe: " .. text)
+end
+
+local function buildUrl(path, extraParams)
+    local url = "http://" .. owf_get_server_host() .. ":" .. owf_get_http_port() .. path .. "?" .. owf_get_auth_query()
+    if extraParams then
+        url = url .. "&" .. extraParams
+    end
+    return url
+end
+
+local function readInventoryOnce()
+    local ok, body, status = pcall(function()
+        return http.request(buildUrl("/api/inventory.php", "wsid=0"), {
+            method = "GET",
+            dont_reuse = true,
+            dont_make_reusable = true,
+        })
+    end)
+    if not (ok and status == 200) then
+        return nil, "status=" .. tostring(status)
+    end
+    local decodeOk, inv = pcall(json.decode, body)
+    if not decodeOk then
+        return nil, "failed to decode response"
+    end
+    return inv, nil
+end
+
+-- inventory.php has a MEASURED ~25-30% per-call failure rate
+-- ("Connection Closed Prematurely" - see project memory
+-- reference_spaceninjaserver_inventoryphp), unrelated to payload size or
+-- load. A single failed read here shouldn't abort the whole probe (and
+-- force a re-run that grants ANOTHER stray test mod) when a quick retry
+-- is cheap - 3 attempts drops the odds of a false abort to roughly
+-- 0.27^3 =~ 2%.
+local function readInventory()
+    for attempt = 1, 3 do
+        local inv, err = readInventoryOnce()
+        if inv then
+            return inv, nil
+        end
+        if attempt < 3 then
+            print("Market Ranked Sell Probe: inventory read failed (" .. tostring(err) .. "), retrying (" .. attempt .. "/3)...")
+            coroutine.sleep(2000)
+        else
+            return nil, err
+        end
+    end
+end
+
+-- Counts existing Upgrades entries for TEST_MOD_PATH and, separately,
+-- tries to find one whose UpgradeFingerprint matches TEST_RANK - returns
+-- (matchCount, totalCountForItemType, oidOfFirstMatch).
+local function findRankedInstances(inv, itemType, rank)
+    local total = 0
+    local matchOid = nil
+    local matchCount = 0
+    if inv.Upgrades then
+        for _, entry in inv.Upgrades do
+            if entry.ItemType == itemType then
+                total = total + 1
+                if entry.UpgradeFingerprint then
+                    local decodeOk, fp = pcall(json.decode, entry.UpgradeFingerprint)
+                    if decodeOk and fp.lvl == rank then
+                        matchCount = matchCount + 1
+                        if not matchOid and entry.ItemId then
+                            matchOid = entry.ItemId["$oid"] or entry.ItemId["$id"]
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return matchCount, total, matchOid
+end
+
+reportChat("starting - reading current inventory to baseline existing Serration Upgrades entries...")
+
+local baselineInv, baselineErr = readInventory()
+if not baselineInv then
+    reportChat("BASELINE READ FAILED even after retries - " .. tostring(baselineErr) .. " -- stopping, can't proceed without this. Nothing granted yet, so just try running the probe again.")
+    return
+end
+
+local _, baselineTotal = findRankedInstances(baselineInv, TEST_MOD_PATH, TEST_RANK)
+reportChat("baseline: " .. baselineTotal .. " existing Upgrades entries for Serration (any rank). Granting a rank " .. TEST_RANK .. " copy via /custom/addItems + Fingerprint (already-proven mechanism)...")
+
+local grantOk, grantBody, grantStatus = pcall(function()
+    return http.request(buildUrl("/custom/addItems", "wsid=0"), {
+        method = "POST",
+        headers = { ["Content-Type"] = "application/json" },
+        body = json.encode({ { ItemType = TEST_MOD_PATH, ItemCount = 1, Fingerprint = json.encode({ lvl = TEST_RANK }) } }),
+        dont_reuse = true,
+        dont_make_reusable = true,
+    })
+end)
+
+if not (grantOk and grantStatus == 200) then
+    reportChat("GRANT FAILED - ok=" .. tostring(grantOk) .. " status=" .. tostring(grantStatus) .. " body=" .. tostring(grantBody):sub(1, 200) .. " -- stopping.")
+    return
+end
+
+reportChat("grant call returned 200. Pausing " .. (PAUSE_MS / 1000) .. "s, then re-reading inventory to find this exact instance's oid via its UpgradeFingerprint (NEW - never parsed by any script here before)...")
+
+coroutine.sleep(PAUSE_MS)
+
+local afterGrantInv, afterGrantErr = readInventory()
+if not afterGrantInv then
+    reportChat("POST-GRANT READ FAILED even after retries - " .. tostring(afterGrantErr) .. " -- the grant already succeeded (status 200 above), so a rank " .. TEST_RANK .. " Serration is sitting in your Mods screen now uncounted by this probe. Harmless to leave there (or sell it normally in-game) - running this probe again will just grant one more.")
+    return
+end
+
+local matchCount, totalAfterGrant, oid = findRankedInstances(afterGrantInv, TEST_MOD_PATH, TEST_RANK)
+
+if totalAfterGrant ~= baselineTotal + 1 then
+    reportChat("UNEXPECTED - total Serration Upgrades entries went from " .. baselineTotal .. " to " .. totalAfterGrant .. " (expected +1). Stopping rather than guessing which instance to sell.")
+    return
+end
+
+if not oid then
+    reportChat("Could not find a rank " .. TEST_RANK .. " Serration instance with a usable oid after the grant - stopping. Go check your Mods screen manually.")
+    return
+end
+
+reportChat("found it - oid=" .. oid .. " (" .. matchCount .. " total rank-" .. TEST_RANK .. " Serration instance(s) now). Go check your Mods screen NOW if you want to see it. Pausing " .. (PAUSE_MS / 1000) .. "s before selling it BY OID (UNTESTED mechanism)...")
+
+coroutine.sleep(PAUSE_MS)
+
+local sellOk, sellBody, sellStatus = pcall(function()
+    return http.request(buildUrl("/api/sell.php", "wsid=0"), {
+        method = "POST",
+        headers = { ["Content-Type"] = "text/plain" },
+        body = json.encode({
+            SellCurrency = "SC_RegularCredits",
+            SellPrice = 0,
+            Items = { Upgrades = { { String = oid, Count = 1 } } },
+        }),
+        dont_reuse = true,
+        dont_make_reusable = true,
+    })
+end)
+
+if not (sellOk and sellStatus == 200) then
+    reportChat("SELL-BY-OID FAILED - ok=" .. tostring(sellOk) .. " status=" .. tostring(sellStatus) .. " body=" .. tostring(sellBody):sub(1, 200) .. " -- the oid-based sell mechanism is NOT confirmed working, do not wire it into Market Sync.pluto's ranked-sell feature.")
+    return
+end
+
+reportChat("sell call returned status=200 body=" .. tostring(sellBody):sub(1, 200) .. " -- that's HTTP success only. Re-reading inventory to confirm the exact instance count dropped by 1 (not just 'something changed')...")
+
+local afterSellInv, afterSellErr = readInventory()
+if not afterSellInv then
+    reportChat("POST-SELL READ FAILED even after retries - " .. tostring(afterSellErr) .. " -- can't confirm the deletion right now, but the sell call itself returned 200. Check your Mods screen manually to see if the rank " .. TEST_RANK .. " copy is gone.")
+    return
+end
+
+local _, totalAfterSell = findRankedInstances(afterSellInv, TEST_MOD_PATH, TEST_RANK)
+
+if totalAfterSell == totalAfterGrant - 1 then
+    reportChat("CONFIRMED WORKING - Serration Upgrades entries went from " .. totalAfterGrant .. " back to " .. totalAfterSell .. ". The sell-by-oid mechanism (Items.Upgrades with a bare oid String) is safe for the ranked-sell feature. Go check your Mods screen to visually confirm the rank " .. TEST_RANK .. " copy is gone.")
+else
+    reportChat("MISMATCH - expected " .. (totalAfterGrant - 1) .. " entries after the sell, got " .. totalAfterSell .. ". Do NOT trust the sell-by-oid mechanism yet - investigate before wiring it into Market Sync.pluto.")
+end
+
+print("Market Ranked Sell Probe: done.")
