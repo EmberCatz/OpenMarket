@@ -110,10 +110,44 @@ main {
     padding: 8px 12px;
 }
 
+.icon-wrap {
+    position: relative;
+    width: 32px;
+    height: 32px;
+}
+
 .mod-icon {
     width: 32px;
     height: 32px;
     object-fit: contain;
+}
+
+/* Small category badge (Blueprint/Neuroptics/Chassis/Systems) pinned to
+   the icon's bottom-right corner, Prime parts only. */
+.slot-badge {
+    position: absolute;
+    bottom: -3px;
+    right: -3px;
+    width: 15px;
+    height: 15px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.slot-badge svg {
+    width: 10px;
+    height: 10px;
+    fill: var(--accent);
+}
+
+/* Same author-vs-UA-default [hidden] override the rank-stepper needed -
+   see that rule's comment below for why this is necessary at all. */
+.slot-badge[hidden] {
+    display: none;
 }
 
 .mod-info {
@@ -191,9 +225,20 @@ main {
     padding: 14px 8px;
 }
 
+.grid-view .icon-wrap,
 .grid-view .mod-icon {
     width: 48px;
     height: 48px;
+}
+
+.grid-view .slot-badge {
+    width: 18px;
+    height: 18px;
+}
+
+.grid-view .slot-badge svg {
+    width: 12px;
+    height: 12px;
 }
 
 .grid-view .mod-info {

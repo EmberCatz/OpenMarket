@@ -91,6 +91,14 @@ parts behave exactly like a Relic row (Buy + Sell). A Set row instead
 shows a single **"Buy Full Set"** button in place of Buy/Sell (selling a
 whole set isn't supported — see Known limitations).
 
+Individual Prime part rows also get a small badge in the icon's
+bottom-right corner showing which of the 4 fixed Warframe slots it is
+(Blueprint/Neuroptics/Chassis/Systems) — hand-drawn glyphs, not real game
+assets (those slot icons are packed game textures, not exposed in the
+local Public Export data), derived from the part's own gameRef suffix
+(`...HelmetBlueprint`/`...ChassisBlueprint`/`...SystemsBlueprint`/plain
+`...Blueprint`), which was verified uniform across all 50 sets.
+
 ## Setup
 
 1. **Backend**

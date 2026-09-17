@@ -118,6 +118,44 @@ function capitalize(s) {
     return s.length ? s[0].toUpperCase() + s.slice(1) : s;
 }
 
+// Small bottom-right badge on a Prime part's icon showing which of the 4
+// fixed Warframe slots it is (item.slot, set server-side in itemsCache.ts
+// from the part's gameRef - "Blueprint"/"HelmetBlueprint"/"ChassisBlueprint"/
+// "SystemsBlueprint" suffixes, verified uniform across all 50 sets). Hand-
+// drawn glyphs, not real game assets - the actual slot icon textures aren't
+// exposed in the local Public Export data (they're packed game textures).
+// Paths deliberately avoid fine detail since they render at ~10-12px.
+const SLOT_ICONS = {
+    blueprint:
+        '<rect x="5" y="3" width="14" height="18" rx="1.5"/>' +
+        '<path d="M8 8h8M8 12h8M8 16h5" stroke="var(--bg)" stroke-width="1.6" stroke-linecap="round" fill="none"/>',
+    helmet:
+        '<path d="M12 4a8 8 0 0 0-8 8v7a1 1 0 0 0 1 1h4v-6a3 3 0 0 1 6 0v6h4a1 1 0 0 0 1-1v-7a8 8 0 0 0-8-8z"/>',
+    chassis:
+        '<path d="M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6z"/>',
+    systems:
+        '<path d="M9 3h6v3h3v6h-3v3H9v-3H6V6h3z"/>' +
+        '<rect x="10" y="10" width="4" height="4" fill="var(--bg)"/>'
+};
+
+const SLOT_LABELS = {
+    blueprint: "Blueprint",
+    helmet: "Neuroptics",
+    chassis: "Chassis",
+    systems: "Systems"
+};
+
+function applySlotBadge(row, item) {
+    const badge = row.querySelector(".slot-badge");
+    if (!item.slot || !SLOT_ICONS[item.slot]) {
+        badge.hidden = true;
+        return;
+    }
+    badge.hidden = false;
+    badge.title = SLOT_LABELS[item.slot];
+    badge.innerHTML = `<svg viewBox="0 0 24 24">${SLOT_ICONS[item.slot]}</svg>`;
+}
+
 // The same +/-/value markup (".rank-stepper") is reused for two different
 // variant kinds: mod/arcane RANK (a numeric 0..maxRank range, set via a
 // Fingerprint on the grant - buy-only, see routes.ts) and relic REFINEMENT
@@ -138,6 +176,7 @@ function renderRow(item) {
     if (item.icon) icon.src = item.icon;
     icon.alt = item.name;
     name.textContent = item.name;
+    applySlotBadge(row, item);
 
     // A Prime set isn't a single grantable item - buying it fires the
     // backend's multi-part grant loop (see routes.ts/Market Sync.pluto),

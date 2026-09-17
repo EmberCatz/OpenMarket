@@ -56,6 +56,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export type ItemCategory = "Upgrades" | "MiscItems" | "Recipes";
 export type ItemType = "mod" | "arcane" | "relic" | "prime_part" | "prime_set";
+export type PrimeSlot = "blueprint" | "helmet" | "chassis" | "systems";
 
 // warframe.market's subtype names -> the real client path suffix for that
 // relic refinement. Source: ExportRelics.json (local Public Export dump),
@@ -79,6 +80,20 @@ export interface MarketItem {
     maxRank: number | null; // mods/arcanes only, null otherwise
     refinements: string[] | null; // relics only (subset of RELIC_REFINEMENT_SUFFIXES' keys), null otherwise
     parts: { gameRef: string; category: ItemCategory }[] | null; // prime_set only - the member items to grant when buying the whole set
+    slot: PrimeSlot | null; // prime_part only - which of the 4 fixed Warframe slots this is, for the UI badge
+}
+
+// Every Prime Warframe set's 4 part gameRefs follow one of exactly these 4
+// suffixes with zero exceptions - verified across all 50 sets in
+// prime-warframe-sets.json (2026-09-17), not assumed from a single example.
+// "Blueprint" with no further suffix is the main/full-Warframe blueprint;
+// the other 3 are the physical component blueprints.
+function primeSlotFromGameRef(gameRef: string): PrimeSlot | null {
+    if (/HelmetBlueprint$/.test(gameRef)) return "helmet";
+    if (/ChassisBlueprint$/.test(gameRef)) return "chassis";
+    if (/SystemsBlueprint$/.test(gameRef)) return "systems";
+    if (/Blueprint$/.test(gameRef)) return "blueprint";
+    return null;
 }
 
 interface PrimeSetDef {
@@ -125,7 +140,8 @@ function classify(item: WfmItemEntry): MarketItem | null {
             defaultSubtype: "regular",
             maxRank: item.maxRank ?? null,
             refinements: null,
-            parts: null
+            parts: null,
+            slot: null
         };
     }
 
@@ -140,7 +156,8 @@ function classify(item: WfmItemEntry): MarketItem | null {
             defaultSubtype: "regular",
             maxRank: item.maxRank ?? null,
             refinements: null,
-            parts: null
+            parts: null,
+            slot: null
         };
     }
 
@@ -158,7 +175,8 @@ function classify(item: WfmItemEntry): MarketItem | null {
             defaultSubtype: refinements.includes("intact") ? "intact" : (refinements[0] ?? "intact"),
             maxRank: null,
             refinements,
-            parts: null
+            parts: null,
+            slot: null
         };
     }
 
@@ -199,7 +217,8 @@ function buildPrimeItems(all: WfmItemEntry[]): MarketItem[] {
                 defaultSubtype: "regular",
                 maxRank: null,
                 refinements: null,
-                parts: null
+                parts: null,
+                slot: primeSlotFromGameRef(def.gameRef)
             });
         }
 
@@ -214,7 +233,8 @@ function buildPrimeItems(all: WfmItemEntry[]): MarketItem[] {
             defaultSubtype: "regular",
             maxRank: null,
             refinements: null,
-            parts: resolvedParts.map(p => p.def)
+            parts: resolvedParts.map(p => p.def),
+            slot: null
         });
     }
 
