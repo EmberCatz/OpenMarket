@@ -101,7 +101,7 @@ main {
 
 .mod-row {
     display: grid;
-    grid-template-columns: 36px 1fr 90px auto auto;
+    grid-template-columns: 72px 1fr 90px auto auto;
     align-items: center;
     gap: 10px;
     background: var(--panel);
@@ -112,13 +112,13 @@ main {
 
 .icon-wrap {
     position: relative;
-    width: 32px;
-    height: 32px;
+    width: 64px;
+    height: 64px;
 }
 
 .mod-icon {
-    width: 32px;
-    height: 32px;
+    width: 64px;
+    height: 64px;
     object-fit: contain;
 }
 
@@ -128,19 +128,19 @@ main {
     position: absolute;
     bottom: -3px;
     right: -3px;
-    width: 15px;
-    height: 15px;
+    width: 30px;
+    height: 30px;
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 4px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .slot-badge svg {
-    width: 10px;
-    height: 10px;
+    width: 20px;
+    height: 20px;
     fill: var(--accent);
 }
 
@@ -227,18 +227,18 @@ main {
 
 .grid-view .icon-wrap,
 .grid-view .mod-icon {
-    width: 48px;
-    height: 48px;
+    width: 96px;
+    height: 96px;
 }
 
 .grid-view .slot-badge {
-    width: 18px;
-    height: 18px;
+    width: 36px;
+    height: 36px;
 }
 
 .grid-view .slot-badge svg {
-    width: 12px;
-    height: 12px;
+    width: 24px;
+    height: 24px;
 }
 
 .grid-view .mod-info {
