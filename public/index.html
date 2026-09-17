@@ -45,7 +45,14 @@
 <template id="mod-row-template">
     <div class="mod-row">
         <img class="mod-icon" src="" alt="" />
-        <div class="mod-name"></div>
+        <div class="mod-info">
+            <div class="mod-name"></div>
+            <div class="rank-stepper" hidden>
+                <button class="rank-btn rank-minus" type="button" aria-label="Decrease rank">&minus;</button>
+                <span class="rank-value">Rank 0</span>
+                <button class="rank-btn rank-plus" type="button" aria-label="Increase rank">&plus;</button>
+            </div>
+        </div>
         <div class="mod-price">&hellip;</div>
         <button class="btn btn-buy">Buy</button>
         <button class="btn btn-sell">Sell</button>

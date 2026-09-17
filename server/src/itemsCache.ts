@@ -35,6 +35,7 @@ export interface MarketItem {
     category: ItemCategory;
     type: ItemType;
     defaultSubtype: string; // the warframe.market order "subtype" this item's price/grant corresponds to
+    maxRank: number | null; // null for relics (not rankable) or if warframe.market didn't report one
 }
 
 const REFRESH_MS = 60 * 60 * 1000; // 1 hour
@@ -60,7 +61,8 @@ function classify(item: WfmItemEntry): MarketItem | null {
             icon: iconUrl(en.icon),
             category: "Upgrades",
             type: "arcane",
-            defaultSubtype: "regular"
+            defaultSubtype: "regular",
+            maxRank: item.maxRank ?? null
         };
     }
 
@@ -72,7 +74,8 @@ function classify(item: WfmItemEntry): MarketItem | null {
             icon: iconUrl(en.icon),
             category: "Upgrades",
             type: "mod",
-            defaultSubtype: "regular"
+            defaultSubtype: "regular",
+            maxRank: item.maxRank ?? null
         };
     }
 
@@ -84,7 +87,8 @@ function classify(item: WfmItemEntry): MarketItem | null {
             icon: iconUrl(en.icon),
             category: "MiscItems",
             type: "relic",
-            defaultSubtype: "intact"
+            defaultSubtype: "intact",
+            maxRank: null
         };
     }
 

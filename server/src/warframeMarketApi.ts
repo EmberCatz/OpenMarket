@@ -18,6 +18,7 @@ export interface WfmItemEntry {
     slug: string;
     gameRef: string;
     tags: string[];
+    maxRank?: number; // present on mods/arcanes, absent on relics/other non-rankable items
     i18n: {
         en?: {
             name: string;

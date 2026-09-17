@@ -116,7 +116,47 @@ main {
     object-fit: contain;
 }
 
-.mod-name { font-size: 0.95rem; }
+.mod-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.mod-name {
+    font-size: 0.95rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rank-stepper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.rank-btn {
+    width: 18px;
+    height: 18px;
+    line-height: 1;
+    padding: 0;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--muted);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.rank-btn:hover { color: var(--text); }
+.rank-btn:disabled { opacity: 0.3; cursor: default; }
+
+.rank-value {
+    font-size: 0.72rem;
+    color: var(--muted);
+    min-width: 46px;
+}
 
 .mod-price {
     text-align: right;
@@ -147,10 +187,18 @@ main {
     height: 48px;
 }
 
+.grid-view .mod-info {
+    align-items: center;
+    width: 100%;
+}
+
 .grid-view .mod-name {
     font-size: 0.85rem;
     line-height: 1.25;
+    white-space: normal;
 }
+
+.grid-view .rank-stepper { justify-content: center; }
 
 .grid-view .mod-price { text-align: center; }
 

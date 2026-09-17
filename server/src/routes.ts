@@ -18,17 +18,23 @@ apiRouter.get("/items", async (_req, res) => {
 
 apiRouter.get("/price/:slug", async (req, res) => {
     const subtype = typeof req.query.subtype === "string" ? req.query.subtype : "regular";
+    const rank = typeof req.query.rank === "string" ? parseInt(req.query.rank, 10) || 0 : 0;
     try {
-        res.json(await getPrice(req.params.slug, subtype));
+        res.json(await getPrice(req.params.slug, subtype, rank));
     } catch (err) {
         res.status(502).json({ error: `Failed to load price from warframe.market: ${(err as Error).message}` });
     }
 });
 
 apiRouter.post("/order", async (req, res) => {
-    const { gameRef, direction, price } = req.body as { gameRef?: string; direction?: string; price?: number };
+    const { gameRef, direction, price, rank } = req.body as {
+        gameRef?: string;
+        direction?: string;
+        price?: number;
+        rank?: number;
+    };
     if (!gameRef || (direction !== "buy" && direction !== "sell") || typeof price !== "number" || price < 0) {
-        res.status(400).json({ error: "Expected { gameRef, direction: 'buy'|'sell', price }" });
+        res.status(400).json({ error: "Expected { gameRef, direction: 'buy'|'sell', price, rank? }" });
         return;
     }
     const item = await findItemByGameRef(gameRef);
@@ -36,7 +42,20 @@ apiRouter.post("/order", async (req, res) => {
         res.status(404).json({ error: "Unknown ItemType path (not in the current warframe.market items list)" });
         return;
     }
-    const order = enqueueOrder(direction, gameRef, item.name, Math.round(price), item.category);
+    // Selling a specific ranked copy isn't supported yet (would need
+    // /api/inventory.php-based oid resolution) - sell always targets the
+    // plain rank-0 stock regardless of what rank was requested/displayed.
+    let effectiveRank = 0;
+    if (direction === "buy") {
+        if (typeof rank === "number" && rank > 0) {
+            if (item.maxRank === null || rank > item.maxRank) {
+                res.status(400).json({ error: `Invalid rank ${rank} for ${item.name} (max ${item.maxRank ?? 0})` });
+                return;
+            }
+            effectiveRank = rank;
+        }
+    }
+    const order = enqueueOrder(direction, gameRef, item.name, Math.round(price), item.category, effectiveRank);
     res.json({ orderId: order.id });
 });
 

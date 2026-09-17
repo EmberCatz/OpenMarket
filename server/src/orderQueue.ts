@@ -16,6 +16,7 @@ export interface Order {
     name: string;
     price: number;
     category: ItemCategory; // which Items.<category> key the sell call needs - buy ignores this
+    rank: number; // buy: grant at this rank (0 = plain RawUpgrades path, unchanged). sell always treats this as 0.
     status: OrderStatus;
     detail?: string;
     createdAt: number;
@@ -33,7 +34,8 @@ export function enqueueOrder(
     gameRef: string,
     name: string,
     price: number,
-    category: ItemCategory
+    category: ItemCategory,
+    rank: number = 0
 ): Order {
     const order: Order = {
         id: randomUUID(),
@@ -42,6 +44,7 @@ export function enqueueOrder(
         name,
         price,
         category,
+        rank,
         status: "pending",
         createdAt: Date.now()
     };

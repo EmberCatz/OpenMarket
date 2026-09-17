@@ -1,0 +1,134 @@
+-- Market Ranked Mod Probe
+--
+-- Isolated diagnostic for the ranked-grant mechanism "Market Sync.pluto"'s
+-- rank feature depends on: POST /custom/addItems with a
+-- Fingerprint={"lvl":N} field, which (per SpaceNinjaServer's actual
+-- addItem() dispatch, read from source) pushes the grant into the
+-- unique-instance Upgrades collection instead of the plain RawUpgrades
+-- stack a rank-0 grant uses. The pattern itself is well-precedented -
+-- SpaceNinjaServer's own WebUI uses exactly this for its "acquire mod
+-- max" flow (static/webui/script.js) - but no script in this project has
+-- ever actually issued this specific call before, so it needs its own
+-- live confirmation, same house rule as the original sell.php probe.
+--
+-- Test plan: grant Serration at rank 3 (out of its real max of 10) via
+-- /custom/addItems + Fingerprint, then fetch /api/inventory.php and look
+-- for a NEW Upgrades entry matching that ItemType with a fingerprint
+-- containing "lvl":3 - confirms the grant actually created a ranked
+-- instance, not just a silently-ignored/no-op request (the same "no
+-- error != it worked" gotcha this project's docs warn about generally).
+--
+-- One-shot script (run once, print/chat the result, exit) - no loop, no
+-- persistent state, no cleanup needed (this is a one-way grant, same as
+-- every other addItems call in this project).
+
+local { http, json } = require "pluto:*"
+
+local TEST_MOD_PATH = "/Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod" -- Serration
+local TEST_RANK = 3
+
+local function reportChat(text)
+    print("Market Ranked Mod Probe: " .. text)
+    chat_system_reply("Market Ranked Mod Probe: " .. text)
+end
+
+local function buildUrl(path, extraParams)
+    local url = "http://" .. owf_get_server_host() .. ":" .. owf_get_http_port() .. path .. "?" .. owf_get_auth_query()
+    if extraParams then
+        url = url .. "&" .. extraParams
+    end
+    return url
+end
+
+local function countMatchingUpgrades(inventory)
+    local count = 0
+    local sawFingerprints = {}
+    for _, entry in inventory.Upgrades do
+        if entry.ItemType == TEST_MOD_PATH then
+            count = count + 1
+            table.insert(sawFingerprints, tostring(entry.UpgradeFingerprint))
+        end
+    end
+    return count, sawFingerprints
+end
+
+reportChat("starting - reading current inventory to baseline existing Serration Upgrades entries...")
+
+local beforeOk, beforeBody, beforeStatus = pcall(function()
+    return http.request(buildUrl("/api/inventory.php"), {
+        method = "GET",
+        dont_reuse = true,
+        dont_make_reusable = true,
+    })
+end)
+
+if not (beforeOk and beforeStatus == 200) then
+    reportChat("BASELINE READ FAILED - ok=" .. tostring(beforeOk) .. " status=" .. tostring(beforeStatus) .. " -- stopping, can't compare before/after without this")
+    return
+end
+
+local beforeDecodeOk, beforeInventory = pcall(json.decode, beforeBody)
+if not (beforeDecodeOk and beforeInventory.Upgrades) then
+    reportChat("BASELINE PARSE FAILED - inventory.php response didn't have the expected Upgrades array")
+    return
+end
+
+local beforeCount = countMatchingUpgrades(beforeInventory)
+reportChat("baseline: " .. beforeCount .. " existing Upgrades entries for Serration (RawUpgrades stack doesn't count here, only ranked/unique instances)")
+
+reportChat("granting Serration at rank " .. TEST_RANK .. " via /custom/addItems + Fingerprint...")
+
+local grantOk, grantBody, grantStatus = pcall(function()
+    return http.request(buildUrl("/custom/addItems", "wsid=0"), {
+        method = "POST",
+        headers = { ["Content-Type"] = "application/json" },
+        body = json.encode({ { ItemType = TEST_MOD_PATH, ItemCount = 1, Fingerprint = json.encode({ lvl = TEST_RANK }) } }),
+        dont_reuse = true,
+        dont_make_reusable = true,
+    })
+end)
+
+if not (grantOk and grantStatus == 200) then
+    reportChat("GRANT FAILED - ok=" .. tostring(grantOk) .. " status=" .. tostring(grantStatus) .. " body=" .. tostring(grantBody):sub(1, 200))
+    return
+end
+
+reportChat("grant call returned 200 - re-checking inventory to confirm a ranked instance actually appeared...")
+
+local afterOk, afterBody, afterStatus = pcall(function()
+    return http.request(buildUrl("/api/inventory.php"), {
+        method = "GET",
+        dont_reuse = true,
+        dont_make_reusable = true,
+    })
+end)
+
+if not (afterOk and afterStatus == 200) then
+    reportChat("POST-GRANT READ FAILED - ok=" .. tostring(afterOk) .. " status=" .. tostring(afterStatus) .. " -- the grant call returned 200 but this can't confirm what actually happened, check your inventory manually")
+    return
+end
+
+local afterDecodeOk, afterInventory = pcall(json.decode, afterBody)
+if not (afterDecodeOk and afterInventory.Upgrades) then
+    reportChat("POST-GRANT PARSE FAILED - check your inventory manually")
+    return
+end
+
+local afterCount, fingerprints = countMatchingUpgrades(afterInventory)
+local expectedFingerprint = json.encode({ lvl = TEST_RANK })
+local foundExpected = false
+for _, fp in fingerprints do
+    if fp:find(tostring(TEST_RANK), 1, true) then
+        foundExpected = true
+    end
+end
+
+if afterCount > beforeCount and foundExpected then
+    reportChat("CONFIRMED WORKING - Upgrades entries for Serration went from " .. beforeCount .. " to " .. afterCount .. ", and a fingerprint containing rank " .. TEST_RANK .. " was found. The Fingerprint={\"lvl\":N} mechanism is safe for Market Sync.pluto's rank feature. Go check your Mods screen for a rank-" .. TEST_RANK .. " Serration to visually confirm.")
+elseif afterCount > beforeCount then
+    reportChat("PARTIAL - a new Upgrades entry appeared (" .. beforeCount .. " -> " .. afterCount .. ") but none of the fingerprints obviously contained rank " .. TEST_RANK .. " (raw: " .. table.concat(fingerprints, " | ") .. ") - check your Mods screen manually before trusting this")
+else
+    reportChat("NO NEW ENTRY - Upgrades count for Serration unchanged (" .. beforeCount .. "), even though the grant call returned 200. This looks like the classic 'no error != it worked' case - do NOT trust Fingerprint-based ranked grants yet, report this back")
+end
+
+print("Market Ranked Mod Probe: done.")

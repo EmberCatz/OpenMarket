@@ -35,6 +35,18 @@
 -- Paced via os.millis() to poll only every POLL_MS, not every frame -
 -- http.request is a synchronous/blocking call, so polling every frame
 -- would needlessly stutter the game.
+--
+-- Rank (mod/arcane fusion level): order.rank > 0 on a BUY passes
+-- Fingerprint={"lvl":N} to addItems, granting that exact rank instead of
+-- a plain unranked copy - the same mechanism SpaceNinjaServer's own WebUI
+-- uses for its "acquire mod max" flow (confirmed from source, not
+-- invented here). A ranked grant lands in the unique-instance Upgrades
+-- collection (not RawUpgrades), which is why SELL deliberately does NOT
+-- support rank>0 - removing a specific ranked copy needs its real
+-- database id (an /api/inventory.php lookup), not built. The backend
+-- enforces this (order.rank is always 0 for sell orders). See
+-- "Market Ranked Mod Probe.pluto" to verify this mechanism on your own
+-- SpaceNinjaServer instance before relying on it.
 
 local { http, json } = require "pluto:*"
 
@@ -87,11 +99,16 @@ end
 -- Grant the item, then debit platinum only if the grant actually succeeded
 -- (a failed grant should never cost the player anything).
 local function doBuy(order)
+    local grantItem = { ItemType = order.gameRef, ItemCount = 1 }
+    if order.rank and order.rank > 0 then
+        grantItem.Fingerprint = json.encode({ lvl = order.rank })
+    end
+
     local grantOk, grantBody, grantStatus = pcall(function()
         return http.request(snsUrl("/custom/addItems", "wsid=0"), {
             method = "POST",
             headers = { ["Content-Type"] = "application/json" },
-            body = json.encode({ { ItemType = order.gameRef, ItemCount = 1 } }),
+            body = json.encode({ grantItem }),
             dont_reuse = true,
             dont_make_reusable = true,
         })

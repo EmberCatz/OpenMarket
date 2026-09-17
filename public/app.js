@@ -115,31 +115,88 @@ function renderRow(item) {
     const price = row.querySelector(".mod-price");
     const buyBtn = row.querySelector(".btn-buy");
     const sellBtn = row.querySelector(".btn-sell");
+    const stepper = row.querySelector(".rank-stepper");
+    const rankValue = row.querySelector(".rank-value");
+    const rankMinus = row.querySelector(".rank-minus");
+    const rankPlus = row.querySelector(".rank-plus");
 
     if (item.icon) icon.src = item.icon;
     icon.alt = item.name;
     name.textContent = item.name;
 
-    schedulePriceFetch(() =>
-        fetchPriceWithRetry(`/api/price/${encodeURIComponent(item.slug)}?subtype=${encodeURIComponent(item.defaultSubtype)}`)
-            .then(info => {
-                price.textContent = info.platinum != null ? `${info.platinum}p` : "no price";
-            })
-            .catch(() => {
-                price.textContent = "?";
-            })
-    );
+    // Resets to rank 0 whenever this row is re-created (page/search/filter
+    // change re-renders everything from scratch) - a deliberate
+    // simplification rather than tracking per-item state across renders.
+    let selectedRank = 0;
 
-    buyBtn.addEventListener("click", () => placeOrder(item, "buy", price, buyBtn, sellBtn));
+    function fetchPrice() {
+        price.textContent = "…";
+        schedulePriceFetch(() =>
+            fetchPriceWithRetry(
+                `/api/price/${encodeURIComponent(item.slug)}?subtype=${encodeURIComponent(item.defaultSubtype)}&rank=${selectedRank}`
+            )
+                .then(info => {
+                    price.textContent = info.platinum != null ? `${info.platinum}p` : "no price";
+                })
+                .catch(() => {
+                    price.textContent = "?";
+                })
+        );
+    }
+
+    // Selling a specific ranked copy isn't supported (would need an
+    // /api/inventory.php oid lookup) - disable Sell whenever a nonzero
+    // rank is selected rather than let it silently sell the wrong thing.
+    function updateSellAvailability() {
+        sellBtn.disabled = selectedRank > 0;
+        sellBtn.title = selectedRank > 0 ? "Selling a specific rank isn't supported yet - reset to Rank 0 to sell." : "";
+    }
+
+    if (item.maxRank !== null && item.maxRank > 0) {
+        stepper.hidden = false;
+        rankValue.textContent = `Rank ${selectedRank}`;
+        rankMinus.disabled = true;
+        rankPlus.disabled = item.maxRank === 0;
+
+        rankMinus.addEventListener("click", () => {
+            if (selectedRank <= 0) return;
+            selectedRank--;
+            rankValue.textContent = `Rank ${selectedRank}`;
+            rankMinus.disabled = selectedRank <= 0;
+            rankPlus.disabled = selectedRank >= item.maxRank;
+            updateSellAvailability();
+            fetchPrice();
+        });
+
+        rankPlus.addEventListener("click", () => {
+            if (selectedRank >= item.maxRank) return;
+            selectedRank++;
+            rankValue.textContent = `Rank ${selectedRank}`;
+            rankMinus.disabled = selectedRank <= 0;
+            rankPlus.disabled = selectedRank >= item.maxRank;
+            updateSellAvailability();
+            fetchPrice();
+        });
+    }
+
+    fetchPrice();
+
+    updateSellAvailability();
+
+    buyBtn.addEventListener("click", () => placeOrder(item, "buy", price, buyBtn, sellBtn, selectedRank, updateSellAvailability));
     sellBtn.addEventListener("click", () => {
         if (!confirm(`Sell your copy of "${item.name}"? This removes it from your inventory.`)) return;
-        placeOrder(item, "sell", price, buyBtn, sellBtn);
+        placeOrder(item, "sell", price, buyBtn, sellBtn, 0, updateSellAvailability);
     });
 
     listEl.appendChild(row);
 }
 
-async function placeOrder(item, direction, priceEl, buyBtn, sellBtn) {
+// restoreSellState re-applies the rank-gated Sell disable instead of
+// blindly clearing it - otherwise finishing an order while a nonzero
+// rank is selected would incorrectly re-enable Sell for a rank it can't
+// actually target.
+async function placeOrder(item, direction, priceEl, buyBtn, sellBtn, rank, restoreSellState) {
     const priceText = priceEl.textContent;
     const platinum = parseInt(priceText, 10);
     if (Number.isNaN(platinum)) {
@@ -152,20 +209,21 @@ async function placeOrder(item, direction, priceEl, buyBtn, sellBtn) {
         const res = await fetch("/api/order", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ gameRef: item.gameRef, direction, price: platinum })
+            body: JSON.stringify({ gameRef: item.gameRef, direction, price: platinum, rank })
         });
         const body = await res.json();
         if (!res.ok) throw new Error(body.error || res.statusText);
-        toast(`${direction === "buy" ? "Buying" : "Selling"} ${item.name}...`, true);
-        pollOrder(body.orderId, item, direction, buyBtn, sellBtn);
+        const rankNote = direction === "buy" && rank > 0 ? ` (Rank ${rank})` : "";
+        toast(`${direction === "buy" ? "Buying" : "Selling"} ${item.name}${rankNote}...`, true);
+        pollOrder(body.orderId, item, direction, buyBtn, restoreSellState);
     } catch (err) {
         toast(`Order failed: ${err.message}`, false);
         buyBtn.disabled = false;
-        sellBtn.disabled = false;
+        restoreSellState();
     }
 }
 
-function pollOrder(orderId, item, direction, buyBtn, sellBtn) {
+function pollOrder(orderId, item, direction, buyBtn, restoreSellState) {
     const interval = setInterval(async () => {
         try {
             const res = await fetch(`/api/order/${orderId}`);
@@ -174,19 +232,19 @@ function pollOrder(orderId, item, direction, buyBtn, sellBtn) {
                 clearInterval(interval);
                 toast(`${direction === "buy" ? "Bought" : "Sold"} ${item.name} for ${order.price}p.`, true);
                 buyBtn.disabled = false;
-                sellBtn.disabled = false;
+                restoreSellState();
             } else if (order.status === "failed") {
                 clearInterval(interval);
                 toast(`${direction === "buy" ? "Buy" : "Sell"} failed for ${item.name}: ${order.detail || "unknown error"}`, false);
                 buyBtn.disabled = false;
-                sellBtn.disabled = false;
+                restoreSellState();
             }
             // else still pending/processing - keep polling
         } catch (err) {
             clearInterval(interval);
             toast(`Lost track of order for ${item.name}: ${err.message}`, false);
             buyBtn.disabled = false;
-            sellBtn.disabled = false;
+            restoreSellState();
         }
     }, 1500);
 }

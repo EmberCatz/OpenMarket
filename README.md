@@ -56,6 +56,12 @@ categories), a type filter (All/Mods/Arcanes/Relics), and a List/Grid view
 toggle. Grid view is pure CSS on the same row markup as List — toggling
 between them never re-fetches prices.
 
+Mods/Arcanes also get a rank stepper (0..maxRank) that live-updates the
+displayed price from warframe.market's per-rank order data — buying grants
+the exact rank shown. **Selling stays rank-0 only**: a specific ranked copy
+can't be sold back (would need `/api/inventory.php`-based database-id
+resolution), so Sell auto-disables whenever a nonzero rank is selected.
+
 ## Setup
 
 1. **Backend**
@@ -80,6 +86,9 @@ Optional: `scripts/Market Sell Probe.pluto` is a one-shot diagnostic that
 tests the trickiest call (`/api/sell.php`) in isolation — grants a cheap
 mod, tries to sell it back, reports pass/fail to chat. Useful as a first
 sanity check on a new/unfamiliar SpaceNinjaServer instance.
+
+`scripts/Market Ranked Mod Probe.pluto` does the same for the rank-buy
+mechanism (`Fingerprint: {"lvl":N}` on the grant) — confirmed working.
 
 ## Confirmed HTTP mechanics
 
@@ -115,6 +124,16 @@ Read directly from SpaceNinjaServer's source, not guessed:
 - **CONFIRMED WORKING end-to-end for all three categories (2026-09-17)** —
   Mods, Arcanes, and Relics each verified with a real in-game buy + sell
   round trip through this UI against a live SpaceNinjaServer instance.
+- **Rank (mod/arcane fusion level), CONFIRMED WORKING (2026-09-17).**
+  Buying at rank > 0 sends `Fingerprint: JSON.stringify({lvl: N})` on the
+  grant — the same mechanism SpaceNinjaServer's own WebUI uses for its
+  "acquire mod max" flow. Verified live: a rank-3 Serration appeared in
+  the Mods screen after granting it through this mechanism.
+- `/api/inventory.php` (used only by the ranked-mod probe, not by the
+  live buy/sell path) intermittently fails with `Connection Closed
+  Prematurely` when fetched twice in close succession — a real but
+  occasional quirk of that large response, not a bug in the request
+  itself. Treat a failed read as "try again."
 
 ## Known limitations
 
@@ -123,8 +142,9 @@ Read directly from SpaceNinjaServer's source, not guessed:
   the path-based items above.
 - Relics are Intact quality only — no Exceptional/Flawless/Radiant
   refinement selection yet.
-- Selling only removes a plain unranked/unfused stacked copy — it can't
-  target a specific fused/leveled mod or ranked arcane instance.
+- Selling a specific ranked mod/arcane copy isn't supported — Sell always
+  targets the plain rank-0 stock (same oid-resolution gap as unique-
+  instance gear above).
 - No persistence — a backend restart drops any in-flight order. Fine for
   a personal single-account tool; add real storage first if you want to
   build on top of this.
