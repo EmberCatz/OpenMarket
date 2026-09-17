@@ -81,10 +81,16 @@ async function loadItems() {
     }
 }
 
+function matchesTypeFilter(item) {
+    if (typeFilter === "all") return true;
+    if (typeFilter === "prime") return item.type === "prime_part" || item.type === "prime_set";
+    return item.type === typeFilter;
+}
+
 function getFilteredItems() {
     const query = searchEl.value.trim().toLowerCase();
     return allItems.filter(item => {
-        if (typeFilter !== "all" && item.type !== typeFilter) return false;
+        if (!matchesTypeFilter(item)) return false;
         if (query && !item.name.toLowerCase().includes(query)) return false;
         return true;
     });
@@ -132,6 +138,16 @@ function renderRow(item) {
     if (item.icon) icon.src = item.icon;
     icon.alt = item.name;
     name.textContent = item.name;
+
+    // A Prime set isn't a single grantable item - buying it fires the
+    // backend's multi-part grant loop (see routes.ts/Market Sync.pluto),
+    // and selling a whole set isn't supported at all (only individual
+    // parts can be sold back - see itemsCache.ts's module comment for
+    // why the set's own gameRef can never be granted/sold directly).
+    if (item.type === "prime_set") {
+        buyBtn.textContent = "Buy Full Set";
+        sellBtn.hidden = true;
+    }
 
     const isRefinable = item.refinements !== null && item.refinements.length > 0;
     const isRankable = item.maxRank !== null && item.maxRank > 0;

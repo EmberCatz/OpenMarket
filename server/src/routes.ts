@@ -44,6 +44,25 @@ apiRouter.post("/order", async (req, res) => {
         return;
     }
 
+    // Prime sets are buy-only - "selling a set" isn't a real single
+    // operation (see itemsCache.ts's module comment: a set's own gameRef
+    // is the finished Warframe's Suit type, never granted directly).
+    // Individual Prime parts can still be sold normally - this only
+    // blocks selling the set-bundle entry itself.
+    if (item.type === "prime_set") {
+        if (direction !== "buy") {
+            res.status(400).json({ error: "Selling a full Prime set isn't supported - sell individual parts instead." });
+            return;
+        }
+        if (!item.parts || item.parts.length === 0) {
+            res.status(400).json({ error: `${item.name} has no resolved parts to grant` });
+            return;
+        }
+        const order = enqueueOrder(direction, item.gameRef, item.name, Math.round(price), item.category, 0, item.parts);
+        res.json({ orderId: order.id });
+        return;
+    }
+
     // Resolve what actually gets sent to Market Sync.pluto - it always
     // sees a fully-resolved gameRef + display name, never refinement/rank
     // logic itself.

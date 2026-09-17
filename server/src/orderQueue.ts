@@ -17,6 +17,7 @@ export interface Order {
     price: number;
     category: ItemCategory; // which Items.<category> key the sell call needs - buy ignores this
     rank: number; // buy: grant at this rank (0 = plain RawUpgrades path, unchanged). sell always treats this as 0.
+    parts: { gameRef: string; category: ItemCategory }[] | null; // Prime set buy only - Market Sync.pluto loops this instead of using gameRef/category above
     status: OrderStatus;
     detail?: string;
     createdAt: number;
@@ -35,7 +36,8 @@ export function enqueueOrder(
     name: string,
     price: number,
     category: ItemCategory,
-    rank: number = 0
+    rank: number = 0,
+    parts: { gameRef: string; category: ItemCategory }[] | null = null
 ): Order {
     const order: Order = {
         id: randomUUID(),
@@ -45,6 +47,7 @@ export function enqueueOrder(
         price,
         category,
         rank,
+        parts,
         status: "pending",
         createdAt: Date.now()
     };

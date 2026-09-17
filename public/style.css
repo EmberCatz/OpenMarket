@@ -136,6 +136,15 @@ main {
     gap: 6px;
 }
 
+/* Author styles always beat the UA default [hidden] { display: none }
+   regardless of specificity - without this override, a hidden stepper
+   (items with no rank/refinement) would show anyway. Latent since the
+   rank feature was added; never caught because every row tested until
+   Prime Parts happened to legitimately need a visible stepper. */
+.rank-stepper[hidden] {
+    display: none;
+}
+
 .rank-btn {
     width: 18px;
     height: 18px;

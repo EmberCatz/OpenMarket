@@ -12,14 +12,17 @@
 -- (autostarting it alongside your other scripts works fine - it does
 -- nothing but poll harmlessly if the backend isn't reachable yet).
 --
--- CONFIRMED WORKING end-to-end in-game (2026-09-17): both buy and sell
--- round trips (item granted/removed, platinum debited/credited) verified
--- through the real web UI, not just in isolation.
+-- CONFIRMED WORKING end-to-end in-game (2026-09-17): buy and sell round
+-- trips (item granted/removed, platinum debited/credited) verified
+-- through the real web UI for Mods, Arcanes, and Relics; Prime Warframe
+-- parts/sets (category "Recipes") separately confirmed via "Market Prime
+-- Recipe Probe.pluto" the same day - not just in isolation.
 --
--- Scope: Mods + Arcanes (category "Upgrades") and Intact Relics (category
--- "MiscItems"). All three operate purely on the item's ItemType path -
--- confirmed from SpaceNinjaServer's actual source (its sellController.ts's
--- Upgrades/MiscItems branches both accept an entry {String=<path>,
+-- Scope: Mods + Arcanes (category "Upgrades"), Relics (category
+-- "MiscItems"), and Prime Warframe parts/sets (category "Recipes"). All
+-- three operate purely on the item's ItemType path - confirmed from
+-- SpaceNinjaServer's actual source (its sellController.ts's Upgrades/
+-- MiscItems/Recipes branches all accept an entry {String=<path>,
 -- Count=N>0} that decrements N stacked copies by path, the same shape its
 -- addItems accepts to grant them) - no oid/inventory.php lookup needed,
 -- unlike unique-instance gear (Suits, weapons, etc), which would need a
@@ -44,9 +47,17 @@
 -- collection (not RawUpgrades), which is why SELL deliberately does NOT
 -- support rank>0 - removing a specific ranked copy needs its real
 -- database id (an /api/inventory.php lookup), not built. The backend
--- enforces this (order.rank is always 0 for sell orders). See
--- "Market Ranked Mod Probe.pluto" to verify this mechanism on your own
--- SpaceNinjaServer instance before relying on it.
+-- enforces this (order.rank is always 0 for sell orders).
+--
+-- Prime sets: order.parts (buy-only) is a list of {gameRef, category}
+-- member items - a set's own gameRef is never granted (it's the finished
+-- Warframe's own type path, a unique-instance route via addPowerSuit(),
+-- deliberately avoided). Instead "Buy Full Set" grants every real
+-- tradeable part individually in one loop, then does a single currency
+-- debit for the whole bundle's price. No rollback on partial failure -
+-- matches this script's existing best-effort pattern (nothing else here
+-- rolls back either) - the player keeps whatever succeeded and is told
+-- what didn't.
 
 local { http, json } = require "pluto:*"
 
@@ -96,15 +107,14 @@ local function reportResult(orderId, wasOk, detail)
     end)
 end
 
--- Grant the item, then debit platinum only if the grant actually succeeded
--- (a failed grant should never cost the player anything).
-local function doBuy(order)
-    local grantItem = { ItemType = order.gameRef, ItemCount = 1 }
-    if order.rank and order.rank > 0 then
-        grantItem.Fingerprint = json.encode({ lvl = order.rank })
+-- Single addItems call, shared by both the plain single-item buy path and
+-- the Prime-set multi-part loop below.
+local function grantSingleItem(itemType, fingerprint)
+    local grantItem = { ItemType = itemType, ItemCount = 1 }
+    if fingerprint then
+        grantItem.Fingerprint = fingerprint
     end
-
-    local grantOk, grantBody, grantStatus = pcall(function()
+    local ok, body, status = pcall(function()
         return http.request(snsUrl("/custom/addItems", "wsid=0"), {
             method = "POST",
             headers = { ["Content-Type"] = "application/json" },
@@ -113,8 +123,33 @@ local function doBuy(order)
             dont_make_reusable = true,
         })
     end)
-    if not (grantOk and grantStatus == 200) then
-        return false, "item grant failed (status=" .. tostring(grantStatus) .. "): " .. tostring(grantBody):sub(1, 150)
+    return ok and status == 200, body, status
+end
+
+-- Grant the item(s), then debit platinum only if every grant actually
+-- succeeded (a failed grant should never cost the player anything).
+local function doBuy(order)
+    if order.parts and #order.parts > 0 then
+        local partsGranted = 0
+        local totalParts = #order.parts
+        for _, part in order.parts do
+            local ok, body, status = grantSingleItem(part.gameRef)
+            if not ok then
+                return false,
+                    "set part " .. (partsGranted + 1) .. "/" .. totalParts .. " (" .. tostring(part.gameRef) ..
+                    ") grant failed (status=" .. tostring(status) .. "): " .. tostring(body):sub(1, 150)
+            end
+            partsGranted = partsGranted + 1
+        end
+    else
+        local fingerprint = nil
+        if order.rank and order.rank > 0 then
+            fingerprint = json.encode({ lvl = order.rank })
+        end
+        local ok, body, status = grantSingleItem(order.gameRef, fingerprint)
+        if not ok then
+            return false, "item grant failed (status=" .. tostring(status) .. "): " .. tostring(body):sub(1, 150)
+        end
     end
 
     local payOk, payBody, payStatus = pcall(function()

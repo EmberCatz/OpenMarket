@@ -1,0 +1,94 @@
+-- Market Prime Recipe Probe
+--
+-- Isolated diagnostic for the one genuinely new mechanism the Prime Parts
+-- feature depends on: SpaceNinjaServer's "Recipes" category, for BOTH
+-- granting (POST /custom/addItems) and selling (POST /api/sell.php,
+-- Items.Recipes). Every other category this project's scripts use
+-- (Upgrades, MiscItems) is already proven working end-to-end - Recipes
+-- has never been exercised by any script here before, even though it's
+-- well-sourced (read directly from SpaceNinjaServer's inventoryService.ts/
+-- sellController.ts, not guessed) and structurally identical (plain
+-- path+count, no oid) to the categories already proven.
+--
+-- Test target: Volt Prime Systems Blueprint
+-- (/Lotus/Types/Recipes/WarframeRecipes/VoltPrimeSystemsBlueprint) - a
+-- cheap, common Prime part confirmed to exist and price correctly via
+-- warframe.market during this feature's planning (2026-09-17).
+--
+-- Test plan: grant 1x via the already-proven addItems endpoint (but an
+-- UNTESTED category for it), then attempt to sell it back via sell.php's
+-- Recipes branch (also untested). Unlike Mods/Relics, a granted Blueprint
+-- shows up in the FOUNDRY tab (under Blueprints), not the Mods/inventory
+-- screen - check there to visually confirm, since this probe's automated
+-- /api/inventory.php before/after check is known-flaky on large reads
+-- (see reference_spaceninjaserver_inventoryphp project memory) and can't
+-- be fully relied on alone.
+--
+-- One-shot script (run once, print/chat the result, exit) - no loop, no
+-- persistent state.
+
+local { http, json } = require "pluto:*"
+
+local TEST_BLUEPRINT_PATH = "/Lotus/Types/Recipes/WarframeRecipes/VoltPrimeSystemsBlueprint"
+
+local function reportChat(text)
+    print("Market Prime Recipe Probe: " .. text)
+    chat_system_reply("Market Prime Recipe Probe: " .. text)
+end
+
+local function buildUrl(path, extraParams)
+    local url = "http://" .. owf_get_server_host() .. ":" .. owf_get_http_port() .. path .. "?" .. owf_get_auth_query()
+    if extraParams then
+        url = url .. "&" .. extraParams
+    end
+    return url
+end
+
+reportChat("starting - granting 1x Volt Prime Systems Blueprint via /custom/addItems (Recipes category, UNTESTED)...")
+
+local grantOk, grantBody, grantStatus = pcall(function()
+    return http.request(buildUrl("/custom/addItems", "wsid=0"), {
+        method = "POST",
+        headers = { ["Content-Type"] = "application/json" },
+        body = json.encode({ { ItemType = TEST_BLUEPRINT_PATH, ItemCount = 1 } }),
+        dont_reuse = true,
+        dont_make_reusable = true,
+    })
+end)
+
+if not (grantOk and grantStatus == 200) then
+    reportChat("GRANT FAILED - ok=" .. tostring(grantOk) .. " status=" .. tostring(grantStatus) .. " body=" .. tostring(grantBody):sub(1, 200) .. " -- stopping, can't test sell without a granted copy first")
+    return
+end
+
+reportChat("grant call returned 200 - go check your FOUNDRY (Blueprints tab) for Volt Prime Systems NOW. Pausing 15s before selling it back so you have time to look...")
+
+coroutine.sleep(15000)
+
+reportChat("15s up - selling it back now...")
+
+local sellPayload = json.encode({
+    SellCurrency = "SC_RegularCredits",
+    SellPrice = 0,
+    Items = {
+        Recipes = { { String = TEST_BLUEPRINT_PATH, Count = 1 } },
+    },
+})
+
+local sellOk, sellBody, sellStatus = pcall(function()
+    return http.request(buildUrl("/api/sell.php", "wsid=0"), {
+        method = "POST",
+        headers = { ["Content-Type"] = "text/plain" }, -- confirmed required for sell.php generally, see Market Sell Probe.pluto's header note
+        body = sellPayload,
+        dont_reuse = true,
+        dont_make_reusable = true,
+    })
+end)
+
+if sellOk and sellStatus == 200 then
+    reportChat("SELL call returned status=200 body=" .. tostring(sellBody):sub(1, 200) .. " -- that's HTTP success only, NOT confirmation. Go check your Foundry NOW: the Blueprint granted 15s ago should be GONE. Report back what you actually see.")
+else
+    reportChat("SELL FAILED - ok=" .. tostring(sellOk) .. " status=" .. tostring(sellStatus) .. " body=" .. tostring(sellBody):sub(1, 200) .. " -- do NOT wire Prime Parts selling into Market Sync.pluto yet, report this back. The grant/buy side may still be fine even if this failed - report both results separately.")
+end
+
+print("Market Prime Recipe Probe: done.")

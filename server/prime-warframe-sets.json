@@ -1,0 +1,1052 @@
+[
+  {
+    "setGameRef": "/Lotus/Powersuits/Alchemist/LavosPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/LavosPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/LavosPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/LavosPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/LavosPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/AntiMatter/NovaPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/NovaPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/NovaPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/NovaPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/NovaPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Banshee/BansheePrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/BansheePrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/BansheePrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/BansheePrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/BansheePrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Bard/OctaviaPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/OctaviaPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/OctaviaPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/OctaviaPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/OctaviaPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Berserker/ValkyrPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/ValkyrPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/ValkyrPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/ValkyrPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/ValkyrPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Brawler/AtlasPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/AtlasPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/AtlasPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/AtlasPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/AtlasPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/BrokenFrame/XakuPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/XakuPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/XakuPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/XakuPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/XakuPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Cowgirl/MesaPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/MesaPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/MesaPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/MesaPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/MesaPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Devourer/GrendelPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/GrendelPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/GrendelPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/GrendelPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/GrendelPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Dragon/ChromaPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/ChromaPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/ChromaPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/ChromaPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/ChromaPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Ember/EmberPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/EmberPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/EmberPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/EmberPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/EmberPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Fairy/TitaniaPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/TitaniaPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/TitaniaPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/TitaniaPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/TitaniaPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Frost/FrostPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/FrostPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/FrostPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/FrostPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/FrostPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Garuda/GarudaPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/GarudaPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/GarudaPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/GarudaPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/GarudaPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Glass/GaraPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/GaraPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/GaraPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/GaraPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/GaraPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Gyre/GyrePrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/GyrePrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/GyrePrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/GyrePrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/GyrePrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Harlequin/MiragePrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/MiragePrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/MiragePrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/MiragePrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/MiragePrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Hoplite/StyanaxPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/StyanaxPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/StyanaxPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/StyanaxPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/StyanaxPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Infestation/InfestationPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/NidusPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/NidusPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/NidusPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/NidusPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/IronFrame/IronFramePrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/HildrynPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/HildrynPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/HildrynPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/HildrynPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Jade/NyxPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/NyxPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/NyxPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/NyxPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/NyxPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Khora/KhoraPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/KhoraPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/KhoraPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/KhoraPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/KhoraPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Loki/LokiPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/LokiPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/LokiPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/LokiPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/LokiPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Mag/MagPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/MagPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/MagPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/MagPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/MagPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Magician/LimboPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/LimboPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/LimboPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/LimboPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/LimboPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/MonkeyKing/WukongPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/WukongPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/WukongPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/WukongPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/WukongPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Necro/NekrosPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/NekrosPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/NekrosPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/NekrosPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/NekrosPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Nezha/NezhaPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/NezhaPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/NezhaPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/NezhaPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/NezhaPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Ninja/AshPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/AshPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/AshPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/AshPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/AshPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Odalisk/ProteaPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/ProteaPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/ProteaPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/ProteaPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/ProteaPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Pacifist/BaruukPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/BaruukPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/BaruukPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/BaruukPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/BaruukPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Paladin/PaladinPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/OberonPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/OberonPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/OberonPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/OberonPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Pirate/HydroidPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/HydroidPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/HydroidPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/HydroidPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/HydroidPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Priest/HarrowPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/HarrowPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/HarrowPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/HarrowPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/HarrowPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Ranger/IvaraPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/IvaraPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/IvaraPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/IvaraPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/IvaraPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Revenant/RevenantPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/RevenantPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/RevenantPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/RevenantPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/RevenantPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Rhino/RhinoPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/RhinoPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/RhinoPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/RhinoPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/RhinoPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Runner/GaussPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/GaussPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/GaussPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/GaussPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/GaussPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Sandman/InarosPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/InarosPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/InarosPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/InarosPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/InarosPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Saryn/SarynPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/SarynPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/SarynPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/SarynPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/SarynPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Sentient/CalibanPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/CalibanPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/CalibanPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/CalibanPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/CalibanPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Tengu/ZephyrPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/ZephyrPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/ZephyrPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/ZephyrPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/ZephyrPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Trapper/TrapperPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/VaubanPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/VaubanPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/VaubanPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/VaubanPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Trinity/TrinityPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/TrinityPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/TrinityPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/TrinityPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/TrinityPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Volt/VoltPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/VoltPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/VoltPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/VoltPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/VoltPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Werewolf/VorunaPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/VorunaPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/VorunaPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/VorunaPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/VorunaPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Wisp/WispPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/WispPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/WispPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/WispPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/WispPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Wraith/SevagothPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/SevagothPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/SevagothPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/SevagothPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/SevagothPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/Yareli/YareliPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/YareliPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/YareliPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/YareliPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/YareliPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Powersuits/YinYang/EquinoxPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/EquinoxPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/EquinoxPrimeHelmetBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/EquinoxPrimeChassisBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/WarframeRecipes/EquinoxPrimeSystemsBlueprint",
+        "category": "Recipes"
+      }
+    ]
+  }
+]
