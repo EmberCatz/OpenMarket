@@ -57,11 +57,12 @@ categories), a type filter (All/Mods/Arcanes/Relics), and a List/Grid view
 toggle. Grid view is pure CSS on the same row markup as List — toggling
 between them never re-fetches prices.
 
-Mods/Arcanes get a rank stepper (0..maxRank) that live-updates the
-displayed price from warframe.market's per-rank order data — buying grants
-the exact rank shown. **Selling stays rank-0 only**: a specific ranked copy
-can't be sold back (would need `/api/inventory.php`-based database-id
-resolution), so Sell auto-disables whenever a nonzero rank is selected.
+Mods/Arcanes get a rank stepper (shown as e.g. "3 of 10") that live-updates
+the displayed price from warframe.market's per-rank order data — buying
+grants the exact rank shown. **Selling stays rank-0 only**: a specific
+ranked copy can't be sold back (would need `/api/inventory.php`-based
+database-id resolution), so Sell auto-disables whenever a nonzero rank is
+selected.
 
 Relics get the same +/- stepper, reused for a different purpose: cycling
 through Intact/Exceptional/Flawless/Radiant. Unlike rank, refinement isn't
@@ -151,6 +152,13 @@ Read directly from SpaceNinjaServer's source, not guessed:
 
 ## Known limitations
 
+- **Rivens are deliberately excluded entirely.** A filter bug (checking
+  for the exact tag `"riven"` instead of any tag containing `"riven"`)
+  let 7 "Veiled Riven Mod" placeholders slip through until fixed
+  2026-09-17 — selling one from the shop would have decremented the same
+  stackable ItemType a player's real earned-in-game veiled Rivens live
+  in, indistinguishably. Fixed; rivens (rolled or veiled) should never
+  appear in `/api/items` now.
 - No unique-instance gear yet (weapon/Warframe skins turned out not to be
   tradeable on warframe.market at all — checked, not guessed — so
   Syndicate armor pieces are the concrete remaining candidate if this is

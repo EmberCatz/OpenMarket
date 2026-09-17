@@ -72,7 +72,17 @@ function classify(item: WfmItemEntry): MarketItem | null {
     const en = item.i18n.en;
     if (!en || !item.gameRef) return null;
 
-    if (item.tags.includes("arcane_enhancement") && !item.tags.includes("riven")) {
+    // Riven placeholders are tagged "riven_mod"/"veiled_riven", NOT the
+    // exact "riven" tag this used to check for - that mismatch let 7
+    // "Veiled Riven Mod" items slip into the shop (confirmed 2026-09-17
+    // by downloading the full catalog and checking real tag names, not
+    // guessed). Rivens are excluded entirely: buying/selling a veiled
+    // riven from this shop would decrement the SAME stackable ItemType a
+    // player's real earned-in-game veiled rivens live in - indistinguishable,
+    // so a Sell click here could silently remove a real one.
+    const isRiven = item.tags.some(t => t.includes("riven"));
+
+    if (item.tags.includes("arcane_enhancement") && !isRiven) {
         return {
             slug: item.slug,
             gameRef: item.gameRef,
@@ -86,7 +96,7 @@ function classify(item: WfmItemEntry): MarketItem | null {
         };
     }
 
-    if (item.tags.includes("mod") && !item.tags.includes("riven")) {
+    if (item.tags.includes("mod") && !isRiven) {
         return {
             slug: item.slug,
             gameRef: item.gameRef,

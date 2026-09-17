@@ -175,7 +175,7 @@ function renderRow(item) {
     if (isRankable) {
         stepper.hidden = false;
         const refresh = () => {
-            stepperValue.textContent = `Rank ${selectedRank}`;
+            stepperValue.textContent = `${selectedRank} of ${item.maxRank}`;
             stepperMinus.disabled = selectedRank <= 0;
             stepperPlus.disabled = selectedRank >= item.maxRank;
             updateSellAvailability();
@@ -191,7 +191,7 @@ function renderRow(item) {
             selectedRank++;
             refresh();
         });
-        stepperValue.textContent = `Rank ${selectedRank}`;
+        stepperValue.textContent = `${selectedRank} of ${item.maxRank}`;
         stepperMinus.disabled = true;
         stepperPlus.disabled = item.maxRank === 0;
     } else if (isRefinable) {
