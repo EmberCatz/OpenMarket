@@ -99,7 +99,8 @@ local { http, json } = require "pluto:*"
 local BACKEND_HOST = "127.0.0.1"
 local BACKEND_PORT = 7890 -- must match the backend's MARKET_EMULATOR_PORT (default 7890)
 local POLL_MS = 2000
-local INVENTORY_POLL_MS = 30000 -- inventory.php is a heavy ~300KB call - not worth fetching every POLL_MS
+local INVENTORY_POLL_MS = 30000 -- interval AFTER A SUCCESS - inventory.php is a heavy ~300KB call, not worth fetching every POLL_MS
+local INVENTORY_RETRY_MS = 5000 -- interval AFTER A FAILURE - short, since the flake rate below is quick/random, not a sustained outage - waiting a full 30s after every failure meant a bad run of luck could leave "Owned: ?" stuck for minutes
 
 local function backendUrl(path)
     return "http://" .. BACKEND_HOST .. ":" .. tostring(BACKEND_PORT) .. path
@@ -197,6 +198,8 @@ local function extractRankedInstances(inv)
     return result
 end
 
+-- Returns true/false so the caller can retry soon after a failure instead
+-- of waiting a full INVENTORY_POLL_MS.
 local function syncInventorySnapshot()
     local ok, body, status = pcall(function()
         return http.request(snsUrl("/api/inventory.php", "wsid=0"), {
@@ -206,14 +209,14 @@ local function syncInventorySnapshot()
         })
     end)
     if not (ok and status == 200) then
-        print("Market Sync: inventory fetch failed (status=" .. tostring(status) .. "), will retry next cycle")
-        return
+        print("Market Sync: inventory fetch failed (status=" .. tostring(status) .. "), retrying in " .. (INVENTORY_RETRY_MS / 1000) .. "s")
+        return false
     end
 
     local decodeOk, inv = pcall(json.decode, body)
     if not decodeOk then
-        print("Market Sync: inventory response failed to decode, will retry next cycle")
-        return
+        print("Market Sync: inventory response failed to decode, retrying in " .. (INVENTORY_RETRY_MS / 1000) .. "s")
+        return false
     end
 
     pcall(function()
@@ -225,6 +228,7 @@ local function syncInventorySnapshot()
             dont_make_reusable = true,
         })
     end)
+    return true
 end
 
 -- Single addItems call, shared by both the plain single-item buy path and
@@ -353,14 +357,14 @@ end
 print("Market Sync: started, polling " .. backendUrl("/internal/pending-order") .. " every " .. POLL_MS .. "ms")
 
 local lastPoll = os.millis()
-local lastInventoryPoll = 0 -- 0 forces an immediate first sync rather than waiting a full INVENTORY_POLL_MS
+local nextInventoryAttempt = 0 -- 0 forces an immediate first attempt
 
 repeat
     local now = os.millis()
 
-    if now - lastInventoryPoll >= INVENTORY_POLL_MS then
-        lastInventoryPoll = now
-        syncInventorySnapshot()
+    if now >= nextInventoryAttempt then
+        local succeeded = syncInventorySnapshot()
+        nextInventoryAttempt = now + (succeeded and INVENTORY_POLL_MS or INVENTORY_RETRY_MS)
     end
 
     if now - lastPoll >= POLL_MS then

@@ -221,12 +221,21 @@ Read directly from SpaceNinjaServer's source, not guessed:
   payload size or a slow timeout as the cause. Root cause otherwise
   unconfirmed (no timeout knob is available on Pluto's `http.request` to
   tune). Not fixable from script-side, but bounded and well-behaved
-  enough that a 30s retry-on-failure loop (what `Market Sync.pluto`
-  already does) lands a successful sync within 1-2 cycles the large
-  majority of the time. Treat a failed read as "try again," and expect
-  the occasional run of several failures in a row as normal variance
-  (P(4 in a row) ≈ 0.5% at this rate, rare but not a sign anything's
-  actually wrong).
+  enough that a short retry loop (see below) lands a successful sync
+  within a few seconds the large majority of the time. Expect the
+  occasional run of several failures in a row as normal variance (P(4 in
+  a row) ≈ 0.5% at this rate, rare but not a sign anything's actually
+  wrong).
+- **Retry cadence fix, 2026-09-17.** The first live run of the owned-count
+  feature waited the full `INVENTORY_POLL_MS` (30s) after every failed
+  attempt before retrying - at the measured flake rate, a bad-luck streak
+  could leave "Owned: ?" stuck for minutes, which is a real problem in
+  practice even though each individual failure is expected. Split into
+  two intervals: `INVENTORY_POLL_MS` (30s) applies only after a
+  **success**, `INVENTORY_RETRY_MS` (5s) applies after a **failure** -
+  since the flakiness is quick/random rather than a sustained outage, a
+  short retry gets a successful sync in a few seconds almost every time
+  instead of potentially waiting several full 30s cycles.
 - **Relic refinement, CONFIRMED WORKING (2026-09-17).** `routes.ts`
   resolves `base + {Bronze,Silver,Gold,Platinum}` server-side per order
   based on the chosen refinement, so `Market Sync.pluto` needed **zero
