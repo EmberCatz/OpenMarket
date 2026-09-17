@@ -96,22 +96,85 @@ function getFilteredItems() {
     });
 }
 
+// Collapse a Prime set's 4 individual part rows into their owning set row
+// (one top-level row instead of 5) whenever the set itself is also present
+// in the current filtered results - expanding it always shows the real 4
+// parts (resolved fresh from allItems by gameRef, not re-filtered), so
+// toggling it open never depends on what search text got you there. A part
+// whose set ISN'T in the current results (e.g. searching "chassis" matches
+// every frame's Chassis Blueprint by name but no set name contains
+// "chassis") has nothing to nest under, so it stays a normal flat row -
+// deliberate fallback rather than hiding it.
+function buildDisplayRows(matches) {
+    const byGameRef = new Map(allItems.map(i => [i.gameRef, i]));
+    const matchedSetGameRefs = new Set(matches.filter(i => i.type === "prime_set").map(i => i.gameRef));
+    const partsOwnedByMatchedSets = new Set();
+    for (const item of matches) {
+        if (item.type === "prime_set") {
+            for (const part of item.parts) partsOwnedByMatchedSets.add(part.gameRef);
+        }
+    }
+
+    const rows = [];
+    for (const item of matches) {
+        if (item.type === "prime_part" && partsOwnedByMatchedSets.has(item.gameRef)) continue;
+        if (item.type === "prime_set" && matchedSetGameRefs.has(item.gameRef)) {
+            const children = item.parts.map(p => byGameRef.get(p.gameRef)).filter(Boolean);
+            rows.push({ item, children });
+        } else {
+            rows.push({ item, children: null });
+        }
+    }
+    return rows;
+}
+
 function render() {
     const matches = getFilteredItems();
-    const totalPages = Math.max(1, Math.ceil(matches.length / ITEMS_PER_PAGE));
+    const rows = buildDisplayRows(matches);
+    const totalPages = Math.max(1, Math.ceil(rows.length / ITEMS_PER_PAGE));
     currentPage = Math.min(Math.max(1, currentPage), totalPages);
 
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    const pageItems = matches.slice(start, start + ITEMS_PER_PAGE);
+    const pageRows = rows.slice(start, start + ITEMS_PER_PAGE);
 
     listEl.innerHTML = "";
-    pageItems.forEach(item => renderRow(item));
+    pageRows.forEach(({ item, children }) => {
+        const row = renderRow(item);
+        listEl.appendChild(row);
+        if (children) attachSetChildren(row, children);
+    });
 
-    setStatus(matches.length === 0 ? "No matches." : `${matches.length} item${matches.length === 1 ? "" : "s"} match.`);
+    setStatus(rows.length === 0 ? "No matches." : `${rows.length} item${rows.length === 1 ? "" : "s"} match.`);
 
     pageIndicatorEl.textContent = `Page ${currentPage} of ${totalPages}`;
     prevPageBtn.disabled = currentPage <= 1;
     nextPageBtn.disabled = currentPage >= totalPages;
+}
+
+// Repurposes a Prime set row's otherwise-unused Sell button slot (sets
+// can't be sold as a unit - see renderRow's module comment) into a
+// collapse/expand toggle for its 4 real parts, rendered as ordinary
+// nested rows via the same renderRow() every other item uses.
+function attachSetChildren(row, childItems) {
+    const toggleBtn = row.querySelector(".btn-sell");
+    toggleBtn.classList.remove("btn-sell");
+    toggleBtn.classList.add("btn-toggle-parts");
+    toggleBtn.title = "";
+    toggleBtn.textContent = "▸ Parts";
+
+    const childrenEl = document.createElement("div");
+    childrenEl.className = "set-children";
+    childrenEl.hidden = true;
+    childItems.forEach(childItem => {
+        childrenEl.appendChild(renderRow(childItem));
+    });
+
+    toggleBtn.addEventListener("click", () => {
+        childrenEl.hidden = !childrenEl.hidden;
+        toggleBtn.textContent = childrenEl.hidden ? "▸ Parts" : "▾ Parts";
+    });
+
+    row.after(childrenEl);
 }
 
 function capitalize(s) {
@@ -182,10 +245,11 @@ function renderRow(item) {
     // backend's multi-part grant loop (see routes.ts/Market Sync.pluto),
     // and selling a whole set isn't supported at all (only individual
     // parts can be sold back - see itemsCache.ts's module comment for
-    // why the set's own gameRef can never be granted/sold directly).
+    // why the set's own gameRef can never be granted/sold directly). Its
+    // Sell button slot gets repurposed into a parts dropdown toggle by
+    // attachSetChildren() instead - see render().
     if (item.type === "prime_set") {
         buyBtn.textContent = "Buy Full Set";
-        sellBtn.hidden = true;
     }
 
     const isRefinable = item.refinements !== null && item.refinements.length > 0;
@@ -279,12 +343,17 @@ function renderRow(item) {
     buyBtn.addEventListener("click", () =>
         placeOrder(item, "buy", price, buyBtn, sellBtn, selectedRank, currentSubtype(), updateSellAvailability)
     );
-    sellBtn.addEventListener("click", () => {
-        if (!confirm(`Sell your copy of "${item.name}"? This removes it from your inventory.`)) return;
-        placeOrder(item, "sell", price, buyBtn, sellBtn, 0, currentSubtype(), updateSellAvailability);
-    });
+    // Sets don't get a Sell listener at all - their Sell button slot is
+    // repurposed as a parts-dropdown toggle by attachSetChildren(), which
+    // attaches its own click handler to the same element instead.
+    if (item.type !== "prime_set") {
+        sellBtn.addEventListener("click", () => {
+            if (!confirm(`Sell your copy of "${item.name}"? This removes it from your inventory.`)) return;
+            placeOrder(item, "sell", price, buyBtn, sellBtn, 0, currentSubtype(), updateSellAvailability);
+        });
+    }
 
-    listEl.appendChild(row);
+    return row;
 }
 
 // restoreSellState re-applies the rank-gated Sell disable instead of

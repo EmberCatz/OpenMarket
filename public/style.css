@@ -99,6 +99,41 @@ main {
     gap: 6px;
 }
 
+/* A Prime set's own Sell button slot is repurposed into this dropdown
+   toggle (its parts row can't be sold as a unit - see app.js) - neutral
+   styling so it doesn't read as another Buy/Sell action. */
+.btn-toggle-parts {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+}
+
+.btn-toggle-parts:hover { border-color: var(--accent); }
+
+/* Nested part rows under an expanded Prime set - indented under the
+   set's icon column so they read as children of it, not siblings. */
+.set-children {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-left: 40px;
+}
+
+.set-children[hidden] {
+    display: none;
+}
+
+.mod-list.grid-view > .set-children {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-left: 0;
+}
+
+.mod-list.grid-view > .set-children .mod-row {
+    width: 130px;
+}
+
 .mod-row {
     display: grid;
     grid-template-columns: 72px 1fr 90px auto auto;

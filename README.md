@@ -89,7 +89,14 @@ never disables for relics.
 Prime parts/sets get no stepper (no rank/refinement concept) — individual
 parts behave exactly like a Relic row (Buy + Sell). A Set row instead
 shows a single **"Buy Full Set"** button in place of Buy/Sell (selling a
-whole set isn't supported — see Known limitations).
+whole set isn't supported — see Known limitations), plus a **"▸ Parts"**
+dropdown toggle in the Sell button's slot that expands to show its 4 real
+member parts as nested rows (each with normal Buy/Sell), collapsed by
+default. Browsing/searching Primes shows one row per set instead of 5 —
+a part only stays a standalone top-level row if its owning set isn't
+also in the current filtered results (e.g. searching "chassis blueprint"
+matches every frame's Chassis part by name but no set name contains
+"chassis", so there's nothing to nest under).
 
 Individual Prime part rows also get a small badge in the icon's
 bottom-right corner showing which of the 4 fixed Warframe slots it is
