@@ -53,7 +53,17 @@ jobs:
           projectPath: launcher
           tagName: ${{ github.ref_name }}
           releaseName: "OpenMarket Launcher ${{ github.ref_name }}"
-          releaseBody: "See the README for setup instructions."
+          releaseBody: |
+            ## Which file do I download?
+
+            - **Windows, recommended** — `*_x64-setup.exe`: normal installer, updates itself automatically.
+            - **Windows, portable** — `*-windows-portable.zip`: extract anywhere, run `launcher.exe` directly, no install. Does **not** auto-update — check back here for new versions.
+            - **Linux** — `*.AppImage`: `chmod +x` it, then run. Updates itself automatically.
+            - `.sig` files and `latest.json` are for the auto-updater only, not for you to download.
+
+            **Requires [Node.js](https://nodejs.org/) 18+** installed separately — the launcher checks on startup and tells you if it's missing.
+
+            Full setup instructions: [README](https://github.com/EmberCatz/OpenMarket#readme)
           # Drafts don't go public or notify watchers until manually
           # published on GitHub - lets a human sanity-check the built
           # artifacts before this becomes a real, visible release.
