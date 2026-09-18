@@ -73,6 +73,13 @@ the search bar shows only while something's still actually in flight
 concurrency-limited queue), so a page that's rendered but still waiting
 on a few values never reads as silently stuck.
 
+A **"?"** anywhere (price, a ranked-copy dropdown line's price, or
+"Owned: ?") is clickable to retry just that one value instead of waiting
+for the next full re-render. For price it always means the fetch itself
+failed (a genuine "nothing's ever sold" answer shows "no price" instead);
+"Owned: ?" covers both a failed fetch and no inventory sync having landed
+yet, since retrying is harmless and useful either way.
+
 If a specific rank/refinement isn't currently listed at all, two
 fallbacks apply in order, both scoped to that *exact* item+rank/subtype:
 
