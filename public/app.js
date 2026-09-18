@@ -214,7 +214,26 @@ function attachOwnedRanksDisplay(row, item) {
             line.className = "owned-rank-row";
 
             const label = document.createElement("span");
+            label.className = "owned-rank-label";
             label.textContent = `Rank ${rank}${rank === item.maxRank ? " (Max)" : ""} — Owned: ${count}`;
+
+            const price = document.createElement("span");
+            price.className = "owned-rank-price";
+            price.textContent = "…";
+            scheduleFetch(() =>
+                fetchJsonWithRetry(`/api/price/${encodeURIComponent(item.slug)}?subtype=regular&rank=${rank}`)
+                    .then(info => {
+                        price.textContent = info.platinum != null ? `${info.platinum}p` : "no price";
+                    })
+                    .catch(() => {
+                        price.textContent = "?";
+                    })
+            );
+
+            const buyBtn = document.createElement("button");
+            buyBtn.className = "btn btn-buy";
+            buyBtn.textContent = "Buy";
+            buyBtn.addEventListener("click", () => buyOneAtRank(rank, price, buyBtn));
 
             const sellBtn = document.createElement("button");
             sellBtn.className = "btn btn-sell";
@@ -222,6 +241,8 @@ function attachOwnedRanksDisplay(row, item) {
             sellBtn.addEventListener("click", () => sellOneAtRank(rank, sellBtn));
 
             line.appendChild(label);
+            line.appendChild(price);
+            line.appendChild(buyBtn);
             line.appendChild(sellBtn);
             listEl.appendChild(line);
         });
@@ -258,6 +279,33 @@ function attachOwnedRanksDisplay(row, item) {
         );
     }
 
+    // Buying a specific rank here is the exact same mechanism the main
+    // row's rank stepper already uses (a plain rank>0 buy order) - just a
+    // convenience shortcut for "buy one more at a rank I already own
+    // some of", not a new order type.
+    async function buyOneAtRank(rank, priceEl, btnEl) {
+        const platinum = parseInt(priceEl.textContent, 10);
+        if (Number.isNaN(platinum)) {
+            toast(`No known price for ${item.name} at rank ${rank} yet - try again in a moment.`, false);
+            return;
+        }
+        btnEl.disabled = true;
+        try {
+            const res = await fetch("/api/order", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ gameRef: item.gameRef, direction: "buy", price: platinum, rank })
+            });
+            const body = await res.json();
+            if (!res.ok) throw new Error(body.error || res.statusText);
+            toast(`Buying ${item.name} (Rank ${rank})...`, true);
+            pollRankedOrder(body.orderId, "buy", rank, btnEl, refresh);
+        } catch (err) {
+            toast(`Order failed: ${err.message}`, false);
+            btnEl.disabled = false;
+        }
+    }
+
     async function sellOneAtRank(rank, btnEl) {
         if (!confirm(`Sell your rank ${rank} copy of "${item.name}"? This removes it from your inventory.`)) return;
         btnEl.disabled = true;
@@ -276,7 +324,7 @@ function attachOwnedRanksDisplay(row, item) {
             const body = await res.json();
             if (!res.ok) throw new Error(body.error || res.statusText);
             toast(`Selling ${item.name} (Rank ${rank})...`, true);
-            pollRankedSell(body.orderId, rank, btnEl, refresh);
+            pollRankedOrder(body.orderId, "sell", rank, btnEl, refresh);
         } catch (err) {
             toast(`Order failed: ${err.message}`, false);
             btnEl.disabled = false;
@@ -286,18 +334,18 @@ function attachOwnedRanksDisplay(row, item) {
     refresh();
 }
 
-function pollRankedSell(orderId, rank, btnEl, onSettled) {
+function pollRankedOrder(orderId, direction, rank, btnEl, onSettled) {
     const interval = setInterval(async () => {
         try {
             const res = await fetch(`/api/order/${orderId}`);
             const order = await res.json();
             if (order.status === "done") {
                 clearInterval(interval);
-                toast(`Sold rank ${rank} copy for ${order.price}p.`, true);
-                onSettled(); // re-fetches the breakdown, rebuilding the list with a fresh (enabled) button
+                toast(`${direction === "buy" ? "Bought" : "Sold"} rank ${rank} copy for ${order.price}p.`, true);
+                onSettled(); // re-fetches the breakdown, rebuilding the list with fresh (enabled) buttons
             } else if (order.status === "failed") {
                 clearInterval(interval);
-                toast(`Sell failed: ${order.detail || "unknown error"}`, false);
+                toast(`${direction === "buy" ? "Buy" : "Sell"} failed: ${order.detail || "unknown error"}`, false);
                 btnEl.disabled = false;
             }
             // else still pending/processing - keep polling

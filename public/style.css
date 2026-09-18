@@ -231,7 +231,10 @@ main {
 /* Nested "you own N at rank X" rows under an expanded mod/arcane row -
    built dynamically in app.js (not from the row template), inserted as
    a sibling right after .mod-row, same pattern .set-children uses for
-   Prime set parts. */
+   Prime set parts. In List view this is a plain indented column; Grid
+   view needs the same span-full-width-then-wrap treatment .set-children
+   already gets below, since a direct child of a CSS Grid container
+   otherwise becomes its own ~130px grid cell instead of a normal block. */
 .owned-ranks-list {
     display: flex;
     flex-direction: column;
@@ -243,11 +246,17 @@ main {
     display: none;
 }
 
+.mod-list.grid-view > .owned-ranks-list {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-left: 0;
+}
+
 .owned-rank-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 10px;
+    gap: 8px;
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -255,6 +264,22 @@ main {
     font-size: 0.8rem;
 }
 
+.mod-list.grid-view > .owned-ranks-list .owned-rank-row {
+    width: 220px;
+}
+
+.owned-rank-label {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.owned-rank-price {
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.owned-rank-row .btn-buy,
 .owned-rank-row .btn-sell {
     padding: 4px 10px;
     font-size: 0.75rem;
