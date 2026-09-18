@@ -103,6 +103,7 @@ apiRouter.post("/order", async (req, res) => {
             return;
         }
         const order = enqueueOrder(direction, item.gameRef, item.name, Math.round(price), item.category, 0, item.parts);
+        console.log(`Order enqueued: buy ${item.name} (full set) for ${Math.round(price)}p [${order.id}]`);
         res.json({ orderId: order.id });
         return;
     }
@@ -126,6 +127,7 @@ apiRouter.post("/order", async (req, res) => {
             return;
         }
         const order = enqueueOrder(direction, item.gameRef, `${item.name} (Rank ${rank})`, Math.round(price), item.category, rank, null, oid);
+        console.log(`Order enqueued: sell ${item.name} (Rank ${rank}) for ${Math.round(price)}p [${order.id}]`);
         res.json({ orderId: order.id });
         return;
     }
@@ -158,6 +160,7 @@ apiRouter.post("/order", async (req, res) => {
     }
 
     const order = enqueueOrder(direction, finalGameRef, displayName, Math.round(price), item.category, effectiveRank);
+    console.log(`Order enqueued: ${direction} ${displayName} for ${Math.round(price)}p [${order.id}]`);
     res.json({ orderId: order.id });
 });
 
@@ -219,6 +222,15 @@ apiRouter.get("/order/:id", (req, res) => {
 // --- Market Sync.pluto-facing only ---
 
 internalRouter.get("/pending-order", (_req, res) => {
+    // Log only the FIRST poll this run, not every one - at Market
+    // Sync.pluto's 2s poll interval, logging every poll would be ~30
+    // lines/minute of pure noise. This edge-triggered line is what
+    // answers "did the script ever actually connect," which is the
+    // thing that's otherwise invisible (see the terminal-panel gap this
+    // was added to fix, 2026-09-18).
+    if (lastPlutoPollAt === null) {
+        console.log("Market Sync.pluto: connected (first poll received).");
+    }
     lastPlutoPollAt = Date.now();
     const order = popPendingOrder();
     if (!order) {
@@ -234,6 +246,7 @@ internalRouter.post("/inventory-snapshot", (req, res) => {
         res.status(400).json({ error: "Expected { counts: Record<string, number>, ranked?: Record<string, {rank,oid}[]> }" });
         return;
     }
+    const isFirstSnapshot = !hasInventorySnapshot();
     setInventorySnapshot(counts as Record<string, number>);
     // Pluto's json.encode serializes an empty Lua table as "[]" (array),
     // not "{}" (object) - there's no ranked mods owned at all in that
@@ -246,6 +259,13 @@ internalRouter.post("/inventory-snapshot", (req, res) => {
             setRankedInstances({});
         }
     }
+    // 30s cadence (Market Sync.pluto's INVENTORY_POLL_MS) - not spammy
+    // enough to need first-time-only gating like the poll log above, and
+    // an ongoing "yes, still syncing" line is more useful here than a
+    // one-off.
+    console.log(
+        `Inventory snapshot ${isFirstSnapshot ? "received (first)" : "updated"}: ${Object.keys(counts as object).length} item types.`
+    );
     res.status(204).end();
 });
 
@@ -260,5 +280,6 @@ internalRouter.post("/order-result", (req, res) => {
         res.status(404).json({ error: "Unknown order id" });
         return;
     }
+    console.log(`Order ${orderId}: ${ok ? "completed" : "FAILED"}${detail ? ` - ${detail}` : ""}`);
     res.status(204).end();
 });
