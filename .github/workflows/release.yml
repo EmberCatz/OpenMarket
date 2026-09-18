@@ -1,0 +1,62 @@
+name: Release Launcher
+
+# Fires on a pushed version tag (e.g. v1.0.0), not on every push to
+# master - so committing/pushing regular work never accidentally cuts a
+# public release. Builds on windows-latest and ubuntu-22.04 (not
+# ubuntu-latest - an older LTS produces AppImages/binaries linked
+# against an older glibc, which run on more distros; newer runners can
+# produce artifacts too new for e.g. current Debian stable).
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            args: "--bundles nsis"
+          - platform: ubuntu-22.04
+            args: "--bundles appimage"
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux system dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential curl wget file libssl-dev
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install launcher npm dependencies
+        working-directory: launcher
+        run: npm install
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: launcher
+          tagName: ${{ github.ref_name }}
+          releaseName: "OpenMarket Launcher ${{ github.ref_name }}"
+          releaseBody: "See the README for setup instructions."
+          # Drafts don't go public or notify watchers until manually
+          # published on GitHub - lets a human sanity-check the built
+          # artifacts before this becomes a real, visible release.
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}

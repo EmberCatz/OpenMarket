@@ -311,7 +311,22 @@ Stop can orphan the real server process holding the port. Invoking tsx's
 own JS entry point means there's exactly one process, and closing the
 launcher (or hitting Stop) actually terminates it.
 
-No installer is published yet — build from source:
+Also has an **Install** step: if the repo path's `server/` dependencies
+aren't installed yet, or the configured Pluto scripts folder is missing
+`Market Sync.pluto`, the primary button reads "Install" instead of
+"Launch App" — it runs `npm install` and/or copies the script in (never
+overwriting one that's already there, in case it's been customized
+in-game), then switches to "Launch App" automatically once everything
+checks out.
+
+Backend supervision, status polling, the settings drawer, and Install are
+confirmed working in dev mode; the originally-planned multi-step
+first-run onboarding wizard was deliberately dropped in favor of inline
+validation hints (✓/✗ next to the repo-path and Pluto-scripts-dir fields)
+— simpler, and covers the same "did I point this at the right folder"
+problem without a dedicated flow.
+
+### Building from source
 
 ```
 cd launcher
@@ -321,14 +336,30 @@ npm run tauri dev      # dev mode, opens a window immediately
 npm run tauri build    # produces a release installer under src-tauri/target/release/bundle/
 ```
 
-Requires Rust (`rustup`) in addition to Node, only for building — an end
-user running a published installer wouldn't need Rust themselves, but
-none has been built/published yet as of 2026-09-18. Backend supervision,
-status polling, and the settings drawer are confirmed working in dev
-mode; the originally-planned multi-step first-run onboarding wizard was
-deliberately dropped in favor of inline validation hints (✓/✗ next to the
-repo-path and Pluto-scripts-dir fields) — simpler, and covers the same
-"did I point this at the right folder" problem without a dedicated flow.
+Requires Rust (`rustup`) in addition to Node — only for building; a
+downloaded release binary needs neither. On Linux, also needs the usual
+Tauri system packages: `libwebkit2gtk-4.1-dev`, `libappindicator3-dev`,
+`librsvg2-dev`, `patchelf`, `build-essential` (Debian/Ubuntu package
+names; see [Tauri's own prerequisites
+docs](https://tauri.app/start/prerequisites/) for other distros).
+Untested on an actual Linux machine as of 2026-09-18 — this list is
+Tauri's documented requirement, not independently confirmed on this
+project yet.
+
+### Releases and auto-update
+
+Tagged releases (`v*`) build via GitHub Actions
+(`.github/workflows/release.yml`) for Windows (NSIS installer) and Linux
+(AppImage specifically, not `.deb`/`.rpm` — AppImage is what Tauri's
+updater can self-replace in place; a `.deb`/`.rpm` install would
+otherwise expect updates through the system package manager instead).
+Releases are created as **drafts** — nothing goes public or notifies
+watchers until manually published on GitHub. The app checks for updates
+once on startup (silently, no error shown if offline/unreachable) and
+shows a banner with an "Update & Restart" button if a newer version is
+available. Update packages are signed — CI needs `TAURI_SIGNING_PRIVATE_KEY`/
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` secrets configured on the repo, or
+the release step fails.
 
 ## Confirmed HTTP mechanics
 
@@ -452,8 +483,15 @@ Read directly from SpaceNinjaServer's source, not guessed:
   it actually stopped doing anything useful. Check the terminal panel /
   the Bootstrapper's `script_log` for actual script health, not just this
   chip.
-- **No launcher installer published yet** — has to be built from source
-  (`npm run tauri build`) as of 2026-09-18.
+- **No launcher release published yet** — the GitHub Actions workflow
+  exists but has never actually been run (no tag pushed yet as of
+  2026-09-18) — has to be built from source until then.
+- **Linux support is source-verified, not build-verified.** The CI
+  workflow targets `ubuntu-22.04` and produces an AppImage, and the one
+  known Windows-only code path (hiding the server's console window) is
+  properly `#[cfg(target_os = "windows")]`-gated, but no one has actually
+  run a build on a real Linux machine yet — the first tagged release will
+  be the first real test.
 - **"Peculiar" mods were miscategorized as Arcanes until fixed 2026-09-18.**
   The 4 Peculiar mods (Growth/Bloom/Audience/End) carry BOTH `"mod"` and
   `"arcane_enhancement"` tags simultaneously on warframe.market — the only

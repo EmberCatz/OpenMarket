@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { openUrl, openPath } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
+import { check, type Update } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 import "./App.css";
 import { DEFAULT_CONFIG, loadConfig, saveConfig, type LauncherConfig } from "./lib/config";
 import {
@@ -48,6 +50,8 @@ export default function App() {
     const [plutoDirValid, setPlutoDirValid] = useState<boolean | null>(null);
     const [depsReady, setDepsReady] = useState<boolean | null>(null);
     const [installing, setInstalling] = useState(false);
+    const [availableUpdate, setAvailableUpdate] = useState<Update | null>(null);
+    const [updating, setUpdating] = useState(false);
 
     const autoOpenPending = useRef(false);
     const logEndRef = useRef<HTMLDivElement>(null);
@@ -60,6 +64,37 @@ export default function App() {
             setConfigLoaded(true);
         });
     }, []);
+
+    // --- Check for an app update once on startup, in the background.
+    // Silent no-op on failure (e.g. offline, or the endpoint being
+    // unreachable) - this should never block or interrupt using the
+    // launcher, just surface a banner if there's something newer. ---
+    useEffect(() => {
+        if (!configLoaded) return;
+        check()
+            .then(update => {
+                if (update) setAvailableUpdate(update);
+            })
+            .catch(() => {
+                /* offline or endpoint unreachable - not worth surfacing as an error */
+            });
+    }, [configLoaded]);
+
+    async function handleUpdate() {
+        if (!availableUpdate) return;
+        setUpdating(true);
+        setError(null);
+        try {
+            await availableUpdate.downloadAndInstall();
+            // Windows: downloadAndInstall already exits the process to run
+            // the installer, so this line is never reached there. Linux/
+            // Mac install in place and need an explicit relaunch.
+            await relaunch();
+        } catch (e) {
+            setUpdating(false);
+            setError(`Update failed: ${String(e)}`);
+        }
+    }
 
     // --- Live server log stream ---
     useEffect(() => {
@@ -291,6 +326,17 @@ export default function App() {
                 </button>
             </header>
 
+            {availableUpdate && (
+                <div className="update-banner">
+                    <span>
+                        Update available: v{availableUpdate.version} (current: v{availableUpdate.currentVersion})
+                    </span>
+                    <button onClick={handleUpdate} disabled={updating}>
+                        {updating ? "Updating..." : "Update & Restart"}
+                    </button>
+                </div>
+            )}
+
             <div className="status-row">
                 <span className="status-item">
                     <span className="status-label">Server</span>
@@ -385,17 +431,10 @@ export default function App() {
                 {tab === "help" && (
                     <div className="help">
                         <h3>Setup Guides</h3>
-                        <p>Opens the source docs in your default editor/viewer.</p>
+                        <p>Opens the README (covers backend setup, script install, and pricing) in your default viewer.</p>
                         <div className="help-links">
-                            <button onClick={() => openPath(`${config.repoPath}\\..\\README.md`).catch(e => setError(String(e)))}>
+                            <button onClick={() => openPath(`${config.repoPath}/README.md`).catch(e => setError(String(e)))}>
                                 OpenMarket README
-                            </button>
-                            <button
-                                onClick={() =>
-                                    openPath(`${config.repoPath}\\..\\..\\docs\\pluto-scripting-guide.md`).catch(e => setError(String(e)))
-                                }
-                            >
-                                Pluto Scripting Guide
                             </button>
                         </div>
                         <h3>Troubleshooting</h3>
@@ -456,7 +495,7 @@ export default function App() {
                                     value={config.repoPath}
                                     onChange={e => setConfig(c => ({ ...c, repoPath: e.target.value }))}
                                     onBlur={() => persistConfig(config)}
-                                    placeholder="C:\Users\...\OpenMarket"
+                                    placeholder=".../OpenMarket"
                                 />
                                 <button onClick={() => browseFolder("repoPath")}>Browse</button>
                             </div>
@@ -481,7 +520,7 @@ export default function App() {
                                     value={config.plutoScriptsDir}
                                     onChange={e => setConfig(c => ({ ...c, plutoScriptsDir: e.target.value }))}
                                     onBlur={() => persistConfig(config)}
-                                    placeholder="...\OpenWF\Scripts"
+                                    placeholder=".../OpenWF/Scripts"
                                 />
                                 <button onClick={() => browseFolder("plutoScriptsDir")}>Browse</button>
                             </div>

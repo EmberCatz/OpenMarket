@@ -57,6 +57,30 @@ body {
     background: var(--border);
 }
 
+.update-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 16px;
+    background: rgba(91, 141, 239, 0.15);
+    border-bottom: 1px solid var(--accent);
+    font-size: 13px;
+}
+.update-banner button {
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.update-banner button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
 .status-row {
     display: flex;
     gap: 24px;
