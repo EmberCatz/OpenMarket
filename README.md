@@ -94,15 +94,28 @@ startup in the background without blocking the app, so browsing works
 immediately, just without prices for anything the sweep hasn't reached
 yet.
 
-If a specific rank has no trade history in the last 90 days at all,
-**rank interpolation** (mods/arcanes only) linearly interpolates between
-whichever other ranks of the same item do have history, or clamps to the
-nearest single known rank rather than extrapolating past it. Doesn't
-assume rank 0 or max-rank specifically exist as anchors, which is what
-keeps it from breaking for an item whose max rank has simply never
-traded. Relic refinements get no such fallback (refinement isn't a
-numeric ladder the same way rank is) — a refinement with zero trades in
-90 days just reads "no price".
+If a specific rank or refinement has no trade history in the last 90 days
+at all, **ladder interpolation** linearly interpolates between whichever
+other rungs of the same item do have history, or clamps to the nearest
+single known rung rather than extrapolating past it. This applies to both
+mod/arcane rank (0..max) and relic refinement (Intact/Exceptional/
+Flawless/Radiant, treated as an ordered 0-3 ladder even though the steps
+are named instead of numbered) — neither assumes its first/last rung
+specifically has data, which is what keeps it from breaking for an item
+whose max rank or Radiant refinement has simply never traded. Relics were
+the only item type with no such fallback until this was fixed 2026-09-18
+(reported as "Relic prices sometimes show 'no price' instead of falling
+back like Mods do") — both ladders now share one interpolation function.
+
+**Bundled fallback dataset.** `server/price-history.seed.json` is a real,
+verified snapshot committed to the repo (unlike `price-history.json`,
+which is gitignored runtime output) — on a fresh clone/install with no
+local cache yet, it's loaded immediately so prices are available from the
+first page load instead of nothing for the ~6-8 minutes the first live
+sweep takes, while that live sweep still kicks off in the background to
+refresh/replace it. It's also the rollback dataset if the legacy v1
+endpoint this whole feature depends on is ever removed outright — a
+known-good snapshot to fall back to rather than the shop going priceless.
 
 A **"?"** anywhere (price, a ranked-copy dropdown line's price, or
 "Owned: ?") is clickable to retry just that one value instead of waiting
@@ -117,6 +130,11 @@ be adapted into a page inside SpaceNinjaServer's own WebUI by someone who
 wanted that, rather than needing a rewrite.
 
 ## Frontend
+
+The header logo and favicon are both real Warframe platinum currency
+icon assets pulled from `warframe.market`/`wiki.warframe.com` — the logo
+source image isn't square (711x505), so it's cropped to a clean 1:1 icon
+via `object-fit: cover` on a fixed-size box rather than stretched.
 
 Real pagination (40 items/page — 2000+ items exist across all four
 categories), a type filter (All/Mods/Arcanes/Relics/Primes), and a
@@ -378,6 +396,13 @@ Read directly from SpaceNinjaServer's source, not guessed:
 
 ## Known limitations
 
+- **"Peculiar" mods were miscategorized as Arcanes until fixed 2026-09-18.**
+  The 4 Peculiar mods (Growth/Bloom/Audience/End) carry BOTH `"mod"` and
+  `"arcane_enhancement"` tags simultaneously on warframe.market — the only
+  items with that overlap (confirmed by downloading the full catalog, not
+  guessed). Classification checked `arcane_enhancement` first, so these
+  landed under Arcanes; reordered so `mod` wins the ambiguous case,
+  matching what they actually are (Warframe-slot mods).
 - **Rivens are deliberately excluded entirely.** A filter bug (checking
   for the exact tag `"riven"` instead of any tag containing `"riven"`)
   let 7 "Veiled Riven Mod" placeholders slip through until fixed

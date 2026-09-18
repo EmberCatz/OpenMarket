@@ -156,14 +156,22 @@ function classify(item: WfmItemEntry): MarketItem | null {
     // so a Sell click here could silently remove a real one.
     const isRiven = item.tags.some(t => t.includes("riven"));
 
-    if (item.tags.includes("arcane_enhancement") && !isRiven) {
+    // The 4 "Peculiar" mods (Peculiar Growth/Bloom/Audience/End) carry
+    // BOTH "mod" AND "arcane_enhancement" tags simultaneously on
+    // warframe.market - confirmed 2026-09-18 by downloading the full
+    // catalog: they're the ONLY items with both tags at once, everything
+    // else has exactly one or the other. "mod" is checked first so this
+    // ambiguous case lands as a Mod (matching what they actually are -
+    // Warframe-slot mods, not Arcanes) rather than an Arcane, which is
+    // what checking arcane_enhancement first used to produce.
+    if (item.tags.includes("mod") && !isRiven) {
         return {
             slug: item.slug,
             gameRef: item.gameRef,
             name: en.name,
             icon: iconUrl(en.icon),
             category: "Upgrades",
-            type: "arcane",
+            type: "mod",
             defaultSubtype: "regular",
             maxRank: item.maxRank ?? null,
             refinements: null,
@@ -174,14 +182,14 @@ function classify(item: WfmItemEntry): MarketItem | null {
         };
     }
 
-    if (item.tags.includes("mod") && !isRiven) {
+    if (item.tags.includes("arcane_enhancement") && !isRiven) {
         return {
             slug: item.slug,
             gameRef: item.gameRef,
             name: en.name,
             icon: iconUrl(en.icon),
             category: "Upgrades",
-            type: "mod",
+            type: "arcane",
             defaultSubtype: "regular",
             maxRank: item.maxRank ?? null,
             refinements: null,

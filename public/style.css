@@ -24,7 +24,24 @@ header {
     margin: 0 auto;
 }
 
-h1 { margin: 0 0 6px; font-size: 1.6rem; }
+.title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+/* The source image is 711x505 (roughly 1.4:1, not square) - object-fit:
+   cover on a fixed square box crops the wider dimension down to a clean
+   1:1 logo instead of stretching/distorting it. */
+.logo {
+    width: 36px;
+    height: 36px;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+h1 { margin: 0; font-size: 1.6rem; }
 
 .subtitle {
     color: var(--muted);

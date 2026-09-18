@@ -12,11 +12,12 @@
 // at request time, eliminating the "prices load slowly" problem at its
 // root rather than just caching around it.
 //
-// Rank interpolation (mods/arcanes only) is carried over from the
-// previous design, unchanged in spirit - if a specific rank genuinely
-// has no trade history in the last 90 days, linearly interpolate between
-// neighboring ranks that do (or clamp to the nearest single one), rather
-// than assuming fixed 0/max-rank anchors exist.
+// Ladder interpolation (mod/arcane rank, AND relic refinement as of
+// 2026-09-18) is carried over from the previous design, unchanged in
+// spirit - if a specific rank/refinement genuinely has no trade history
+// in the last 90 days, linearly interpolate between neighboring ladder
+// positions that do (or clamp to the nearest single one), rather than
+// assuming fixed first/last anchors exist.
 //
 // One real cost of this whole design: it depends on a v1 endpoint that
 // could be deprecated at any time (unlike v2, which is the actively
@@ -35,6 +36,15 @@ import { getItems } from "./itemsCache.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HISTORY_FILE = path.join(__dirname, "../price-history.json");
+// Committed to the repo (unlike price-history.json, which is gitignored
+// runtime output) - a real, verified snapshot from a completed sweep,
+// bundled so a fresh clone/install has real prices immediately instead
+// of nothing for the ~6-8 minutes the first live sweep takes, AND so
+// there's a clean known-good dataset to fall back to if the v1 endpoint
+// this whole feature depends on ever disappears for good (see this
+// file's top comment). Only ever read once, at startup, when no local
+// price-history.json exists yet - never overwrites a real cache.
+const SEED_FILE = path.join(__dirname, "../price-history.seed.json");
 const REFRESH_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // weekly
 
 // MEASURED, not assumed: 5 CONCURRENT requests against this v1 endpoint
@@ -64,13 +74,31 @@ interface DiskCache {
 }
 
 function loadFromDisk(): void {
-    if (!existsSync(HISTORY_FILE)) return;
-    try {
-        const parsed = JSON.parse(readFileSync(HISTORY_FILE, "utf8")) as DiskCache;
-        priceHistory = parsed.priceHistory ?? {};
-        lastRefreshCompletedAt = parsed.lastRefreshCompletedAt ?? null;
-    } catch (err) {
-        console.error(`Failed to load ${HISTORY_FILE}, starting empty:`, err);
+    if (existsSync(HISTORY_FILE)) {
+        try {
+            const parsed = JSON.parse(readFileSync(HISTORY_FILE, "utf8")) as DiskCache;
+            priceHistory = parsed.priceHistory ?? {};
+            lastRefreshCompletedAt = parsed.lastRefreshCompletedAt ?? null;
+            return;
+        } catch (err) {
+            console.error(`Failed to load ${HISTORY_FILE}, starting empty:`, err);
+        }
+    }
+
+    // No local cache yet (fresh install, or the file failed to parse) -
+    // seed from the bundled snapshot so prices are available immediately.
+    // lastRefreshCompletedAt is deliberately left null so the normal
+    // staleness check (ensureFreshPriceHistory, called right after this)
+    // still kicks off a real sweep on top of it - the seed is a starting
+    // point to upgrade from, not treated as already-fresh data.
+    if (existsSync(SEED_FILE)) {
+        try {
+            const parsed = JSON.parse(readFileSync(SEED_FILE, "utf8")) as { priceHistory?: Record<string, Record<string, number>> };
+            priceHistory = parsed.priceHistory ?? {};
+            console.log("Price history: no local cache found - seeded from the bundled snapshot, refreshing live in the background.");
+        } catch (err) {
+            console.error(`Failed to load bundled seed ${SEED_FILE}:`, err);
+        }
     }
 }
 loadFromDisk();
@@ -182,7 +210,45 @@ export interface PriceInfo {
     slug: string;
     platinum: number | null;
     sampleSize: number; // always 0 - kept for API shape compatibility, not a meaningful live order count anymore
-    approx: boolean; // true if interpolated from neighboring ranks rather than having its own 90-day trade history
+    approx: boolean; // true if interpolated from neighboring ladder positions rather than having its own 90-day trade history
+}
+
+// Relic refinements form the same kind of ordered "ladder" mod rank does
+// (Intact cheapest/most common, Radiant priciest/rarest, Exceptional and
+// Flawless in between) even though the steps are named instead of
+// numbered - so the identical interpolation approach applies: a
+// refinement with no 90-day trade history interpolates between
+// neighboring refinements that do, rather than reading "no price" just
+// because that ONE specific refinement happens to be thin. Fixed
+// 2026-09-18 after being reported as a real gap - relics were the only
+// item type with no fallback at all when their exact variant had no
+// trade history, unlike mods/arcanes.
+const RELIC_REFINEMENT_ORDER = ["intact", "exceptional", "flawless", "radiant"];
+
+// Shared by both the mod/arcane rank ladder and the relic refinement
+// ladder - `ladderKeys` is the full ordered list of variant keys for
+// this item's ladder (e.g. ["rank:0", ..., "rank:10"] or
+// ["subtype:intact", ..., "subtype:radiant"]), `targetIndex` is which
+// position in that list is actually wanted. Never assumes the first/last
+// position specifically has data - uses whatever's actually known.
+function interpolateLadder(perVariant: Record<string, number>, ladderKeys: string[], targetIndex: number): number | null {
+    const known: { index: number; platinum: number }[] = [];
+    ladderKeys.forEach((key, index) => {
+        if (perVariant[key] != null) known.push({ index, platinum: perVariant[key] });
+    });
+    if (known.length === 0) return null;
+
+    let lower: { index: number; platinum: number } | null = null;
+    let upper: { index: number; platinum: number } | null = null;
+    for (const k of known) {
+        if (k.index <= targetIndex && (!lower || k.index > lower.index)) lower = k;
+        if (k.index >= targetIndex && (!upper || k.index < upper.index)) upper = k;
+    }
+    if (lower && upper && lower.index !== upper.index) {
+        const t = (targetIndex - lower.index) / (upper.index - lower.index);
+        return Math.round(lower.platinum + (upper.platinum - lower.platinum) * t);
+    }
+    return (lower ?? upper)!.platinum;
 }
 
 // Synchronous - no network call happens here at all, only a plain object
@@ -194,37 +260,23 @@ export function getPrice(slug: string, subtype: string = "regular", rank: number
     }
 
     const isRankLadder = subtype === "regular" && maxRank !== null && maxRank > 0;
-    const key = subtype !== "regular" ? `subtype:${subtype}` : isRankLadder ? `rank:${rank}` : "default";
+    const isRefinementLadder = subtype !== "regular" && RELIC_REFINEMENT_ORDER.includes(subtype);
+    const key = isRefinementLadder ? `subtype:${subtype}` : isRankLadder ? `rank:${rank}` : "default";
 
     if (perVariant[key] != null) {
         return { slug, platinum: perVariant[key], sampleSize: 0, approx: false };
     }
 
-    // This exact rank has no trade history in the last 90 days - try
-    // interpolating from whichever OTHER ranks of the same item do.
-    // Never assumes rank 0 or max rank specifically exist as anchors.
     if (isRankLadder) {
-        const known: { rank: number; platinum: number }[] = [];
-        for (let r = 0; r <= maxRank; r++) {
-            const rKey = `rank:${r}`;
-            if (perVariant[rKey] != null) known.push({ rank: r, platinum: perVariant[rKey] });
-        }
-        if (known.length > 0) {
-            let lower: { rank: number; platinum: number } | null = null;
-            let upper: { rank: number; platinum: number } | null = null;
-            for (const k of known) {
-                if (k.rank <= rank && (!lower || k.rank > lower.rank)) lower = k;
-                if (k.rank >= rank && (!upper || k.rank < upper.rank)) upper = k;
-            }
-            let platinum: number;
-            if (lower && upper && lower.rank !== upper.rank) {
-                const t = (rank - lower.rank) / (upper.rank - lower.rank);
-                platinum = Math.round(lower.platinum + (upper.platinum - lower.platinum) * t);
-            } else {
-                platinum = (lower ?? upper!).platinum;
-            }
-            return { slug, platinum, sampleSize: 0, approx: true };
-        }
+        const ladderKeys = Array.from({ length: maxRank + 1 }, (_, r) => `rank:${r}`);
+        const platinum = interpolateLadder(perVariant, ladderKeys, rank);
+        if (platinum !== null) return { slug, platinum, sampleSize: 0, approx: true };
+    }
+
+    if (isRefinementLadder) {
+        const ladderKeys = RELIC_REFINEMENT_ORDER.map(s => `subtype:${s}`);
+        const platinum = interpolateLadder(perVariant, ladderKeys, RELIC_REFINEMENT_ORDER.indexOf(subtype));
+        if (platinum !== null) return { slug, platinum, sampleSize: 0, approx: true };
     }
 
     return { slug, platinum: null, sampleSize: 0, approx: false };
