@@ -219,8 +219,14 @@ tab. Switching tabs resets that tab's filter back to "All".
 
 ## Probe scripts
 
-Optional one-shot diagnostics in `scripts/`, useful as a sanity check on
-a new/unfamiliar SpaceNinjaServer instance:
+Optional one-shot diagnostics in **`scripts/probes/`** (moved out of
+`scripts/` itself, 2026-09-19 — a real user copied the whole `scripts/`
+folder instead of just `Market Sync.pluto` as instructed, which put
+every probe on equal footing in OpenWF's script-runner UI and led to one
+getting run by mistake, confusing a real support conversation. Separate
+subfolder means copying `scripts/` wholesale no longer sweeps these in),
+useful as a **deliberate** sanity check on a new/unfamiliar SpaceNinjaServer
+instance — not something a normal install should ever run:
 
 - `Market Sell Probe.pluto` — tests `/api/sell.php` in isolation (grants
   a cheap mod, sells it back, reports pass/fail to chat).
@@ -364,7 +370,7 @@ Read directly from SpaceNinjaServer's source, not guessed:
   call here) — its controller does `JSON.parse(String(req.body))`, which
   expects the raw string body. Sending JSON content-type lets Express
   pre-parse the body first, breaking that call with an opaque empty
-  `HTTP 500`. See `scripts/Market Sell Probe.pluto`'s header comment for
+  `HTTP 500`. See `scripts/probes/Market Sell Probe.pluto`'s header comment for
   the full writeup.
 - `gameRef` on a warframe.market v2 item entry (e.g.
   `/v2/item/serration` → `gameRef: "/Lotus/Upgrades/Mods/Rifle/
