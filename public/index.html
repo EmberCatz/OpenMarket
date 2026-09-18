@@ -31,6 +31,39 @@
         </div>
     </div>
 
+    <div class="toolbar toolbar-secondary">
+        <select id="sort-select" aria-label="Sort by">
+            <option value="default">Sort: Default</option>
+            <option value="name-asc">Name (A-Z)</option>
+            <option value="name-desc">Name (Z-A)</option>
+            <option value="type">Type</option>
+            <option value="owned-desc">Owned (High-Low)</option>
+            <option value="owned-asc">Owned (Low-High)</option>
+            <option value="price-asc">Price (Low-High)</option>
+            <option value="price-desc">Price (High-Low)</option>
+        </select>
+        <div id="owned-filter" class="filter-group" role="group" aria-label="Filter by ownership">
+            <button class="filter-btn active" data-owned="all">All</button>
+            <button class="filter-btn" data-owned="owned">Owned</button>
+            <button class="filter-btn" data-owned="not-owned">Not Owned</button>
+        </div>
+        <div id="rarity-filter" class="filter-group" role="group" aria-label="Filter by rarity" hidden>
+            <button class="filter-btn active" data-rarity="all">All</button>
+            <button class="filter-btn" data-rarity="common">Common</button>
+            <button class="filter-btn" data-rarity="uncommon">Uncommon</button>
+            <button class="filter-btn" data-rarity="rare">Rare</button>
+            <button id="rarity-legendary-btn" class="filter-btn" data-rarity="legendary">Legendary</button>
+        </div>
+        <div id="era-filter" class="filter-group" role="group" aria-label="Filter by relic era" hidden>
+            <button class="filter-btn active" data-era="all">All</button>
+            <button class="filter-btn" data-era="lith">Lith</button>
+            <button class="filter-btn" data-era="meso">Meso</button>
+            <button class="filter-btn" data-era="neo">Neo</button>
+            <button class="filter-btn" data-era="axi">Axi</button>
+            <button class="filter-btn" data-era="requiem">Requiem</button>
+        </div>
+    </div>
+
     <div class="status-row">
         <div id="status" class="status"></div>
         <div id="price-loading" class="price-loading" hidden>Loading prices&hellip;</div>
@@ -45,6 +78,10 @@
 </main>
 
 <div id="toast-container"></div>
+
+<div id="icon-preview" class="icon-preview" hidden>
+    <img id="icon-preview-img" src="" alt="" />
+</div>
 
 <template id="mod-row-template">
     <div class="mod-row">

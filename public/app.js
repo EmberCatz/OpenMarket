@@ -69,10 +69,29 @@ const viewToggleEl = document.getElementById("view-toggle");
 const prevPageBtn = document.getElementById("prev-page");
 const nextPageBtn = document.getElementById("next-page");
 const pageIndicatorEl = document.getElementById("page-indicator");
+const sortSelectEl = document.getElementById("sort-select");
+const ownedFilterEl = document.getElementById("owned-filter");
+const rarityFilterEl = document.getElementById("rarity-filter");
+const eraFilterEl = document.getElementById("era-filter");
+const legendaryBtnEl = document.getElementById("rarity-legendary-btn");
+const iconPreviewEl = document.getElementById("icon-preview");
+const iconPreviewImgEl = document.getElementById("icon-preview-img");
 
 let allItems = [];
 let typeFilter = "all";
 let currentPage = 1;
+let sortMode = "default";
+let ownedFilter = "all"; // "all" | "owned" | "not-owned"
+let rarityFilter = "all"; // mods/arcanes only
+let eraFilter = "all"; // relics only
+
+// A render() this large (owned-filter/sort can await a bulk fetch, price
+// sort can await fetching an entire filtered set) can take a while - if
+// the user changes something before it finishes, an older in-flight
+// render must never clobber a newer one's result. Each render() captures
+// its own generation number and checks it's still current before
+// touching the DOM.
+let renderGeneration = 0;
 
 function setStatus(text) {
     statusEl.textContent = text;
@@ -109,8 +128,134 @@ function getFilteredItems() {
     return allItems.filter(item => {
         if (!matchesTypeFilter(item)) return false;
         if (query && !item.name.toLowerCase().includes(query)) return false;
+        if ((item.type === "mod" || item.type === "arcane") && rarityFilter !== "all" && item.rarity !== rarityFilter) return false;
+        if (item.type === "relic" && eraFilter !== "all" && item.relicEra !== eraFilter) return false;
         return true;
     });
+}
+
+// Bulk total-owned-per-item map (see routes.ts's /api/owned-summary) -
+// loaded lazily, once, the first time an owned-based filter or sort is
+// actually used, then kept for the rest of the session. All in-memory
+// data server-side (no external calls), so this is cheap even though it
+// covers the whole catalog at once - the alternative (resolving "am I
+// filtering out this item" per-row like price/owned-count already do)
+// doesn't work for a FILTER, which needs to know before deciding what's
+// even on the page.
+let ownedSummary = null;
+let ownedSummaryPromise = null;
+
+function ensureOwnedSummary() {
+    if (ownedSummary) return Promise.resolve(ownedSummary);
+    if (!ownedSummaryPromise) {
+        ownedSummaryPromise = fetch("/api/owned-summary")
+            .then(res => res.json())
+            .then(body => {
+                ownedSummary = body.owned || {};
+                return ownedSummary;
+            })
+            .catch(() => {
+                // Fail open - an unfiltered/unsorted-by-owned view is
+                // better than the whole page refusing to render.
+                ownedSummary = {};
+                return ownedSummary;
+            });
+    }
+    return ownedSummaryPromise;
+}
+
+function ownedCountFor(item) {
+    return (ownedSummary && ownedSummary[item.gameRef]) || 0;
+}
+
+// Client-side price cache, keyed by the item's DEFAULT display state
+// (rank 0 / default refinement - whatever a freshly-rendered row shows
+// before anyone touches its stepper), so "sort by price" can reuse
+// anything already seen this session instead of always re-fetching, and
+// so the comparison is apples-to-apples across items (comparing one
+// item's rank-3 price against another's rank-0 price wouldn't mean
+// anything). Populated both here (bulk sort fetch) and opportunistically
+// by each row's own fetchPrice() when it happens to be at rank 0/default.
+const clientPriceCache = new Map();
+
+function defaultPriceCacheKey(item) {
+    const subtype = item.refinements ? item.defaultSubtype : "regular";
+    return `${item.slug}:${subtype}:0`;
+}
+
+async function ensurePricesFor(items) {
+    const toFetch = items.filter(item => !clientPriceCache.has(defaultPriceCacheKey(item)));
+    await Promise.all(
+        toFetch.map(
+            item =>
+                new Promise(resolve => {
+                    scheduleFetch(() =>
+                        fetchJsonWithRetry(
+                            `/api/price/${encodeURIComponent(item.slug)}?subtype=${encodeURIComponent(item.refinements ? item.defaultSubtype : "regular")}&rank=0`
+                        )
+                            .then(info => {
+                                clientPriceCache.set(defaultPriceCacheKey(item), info.platinum);
+                            })
+                            .catch(() => {
+                                clientPriceCache.set(defaultPriceCacheKey(item), null);
+                            })
+                            .finally(resolve)
+                    );
+                })
+        )
+    );
+}
+
+function cachedPriceFor(item) {
+    const key = defaultPriceCacheKey(item);
+    return clientPriceCache.has(key) ? clientPriceCache.get(key) : null;
+}
+
+const TYPE_SORT_ORDER = { mod: 0, arcane: 1, relic: 2, prime_part: 3, prime_set: 3 };
+
+// Applied to the already-grouped display rows (post prime-set collapsing)
+// rather than the raw item list, so a set sorts as one unit alongside
+// everything else instead of its 4 (hidden) children being compared
+// individually. Returns a NEW array - never mutates `rows` in place,
+// since the caller may still need the original order (e.g. if a sort
+// mode is later changed back to "default").
+async function applySort(rows) {
+    if (sortMode === "default") return rows;
+
+    if (sortMode === "name-asc" || sortMode === "name-desc") {
+        const sorted = [...rows].sort((a, b) => a.item.name.localeCompare(b.item.name));
+        return sortMode === "name-asc" ? sorted : sorted.reverse();
+    }
+
+    if (sortMode === "type") {
+        return [...rows].sort((a, b) => TYPE_SORT_ORDER[a.item.type] - TYPE_SORT_ORDER[b.item.type]);
+    }
+
+    if (sortMode === "owned-asc" || sortMode === "owned-desc") {
+        await ensureOwnedSummary();
+        const sorted = [...rows].sort((a, b) => ownedCountFor(a.item) - ownedCountFor(b.item));
+        return sortMode === "owned-desc" ? sorted.reverse() : sorted;
+    }
+
+    if (sortMode === "price-asc" || sortMode === "price-desc") {
+        await ensurePricesFor(rows.map(r => r.item));
+        // Sorting an ascending result with .reverse() (like name/owned
+        // above) would flip "unknown price" items from last to first on
+        // descending - handle the null case directly in the comparator
+        // instead, with the direction only affecting the known-vs-known
+        // comparison.
+        const dir = sortMode === "price-asc" ? 1 : -1;
+        return [...rows].sort((a, b) => {
+            const pa = cachedPriceFor(a.item);
+            const pb = cachedPriceFor(b.item);
+            if (pa == null && pb == null) return 0;
+            if (pa == null) return 1; // unknown price always sorts last, either direction
+            if (pb == null) return -1;
+            return (pa - pb) * dir;
+        });
+    }
+
+    return rows;
 }
 
 // Collapse a Prime set's 4 individual part rows into their owning set row
@@ -145,9 +290,22 @@ function buildDisplayRows(matches) {
     return rows;
 }
 
-function render() {
-    const matches = getFilteredItems();
-    const rows = buildDisplayRows(matches);
+async function render() {
+    const myGeneration = ++renderGeneration;
+
+    let matches = getFilteredItems();
+
+    if (ownedFilter !== "all") {
+        await ensureOwnedSummary();
+        if (myGeneration !== renderGeneration) return; // superseded while awaiting
+        matches = matches.filter(item => (ownedFilter === "owned") === (ownedCountFor(item) > 0));
+    }
+
+    let rows = buildDisplayRows(matches);
+
+    rows = await applySort(rows);
+    if (myGeneration !== renderGeneration) return; // superseded while awaiting (esp. a slow price sort)
+
     const totalPages = Math.max(1, Math.ceil(rows.length / ITEMS_PER_PAGE));
     currentPage = Math.min(Math.max(1, currentPage), totalPages);
 
@@ -413,6 +571,36 @@ const SLOT_LABELS = {
     systems: "Systems"
 };
 
+// Shows a larger version of an item's icon next to the cursor on hover -
+// especially useful for reading a mod's artwork/text at a size the tiny
+// row icon can't. pointer-events:none on the popup (see style.css) means
+// it never itself triggers mouseleave, so this stays simple: just follow
+// the cursor and flip to the other side if it would run off-screen.
+function attachIconPreview(icon, item) {
+    if (!item.icon) return;
+    icon.addEventListener("mouseenter", () => {
+        iconPreviewImgEl.src = item.icon;
+        iconPreviewImgEl.alt = item.name;
+        iconPreviewEl.hidden = false;
+    });
+    icon.addEventListener("mousemove", e => {
+        const margin = 16;
+        const width = iconPreviewEl.offsetWidth;
+        const height = iconPreviewEl.offsetHeight;
+        let x = e.clientX + margin;
+        if (x + width > window.innerWidth - 8) {
+            x = e.clientX - margin - width; // flip to the left of the cursor instead
+        }
+        let y = e.clientY - height / 2;
+        y = Math.max(8, Math.min(y, window.innerHeight - height - 8));
+        iconPreviewEl.style.left = `${x}px`;
+        iconPreviewEl.style.top = `${y}px`;
+    });
+    icon.addEventListener("mouseleave", () => {
+        iconPreviewEl.hidden = true;
+    });
+}
+
 function applySlotBadge(row, item) {
     const badge = row.querySelector(".slot-badge");
     if (!item.slot || !SLOT_ICONS[item.slot]) {
@@ -446,6 +634,7 @@ function renderRow(item) {
     icon.alt = item.name;
     name.textContent = item.name;
     applySlotBadge(row, item);
+    attachIconPreview(icon, item);
 
     // A Prime set isn't a single grantable item - buying it fires the
     // backend's multi-part grant loop (see routes.ts/Market Sync.pluto),
@@ -480,6 +669,13 @@ function renderRow(item) {
             )
                 .then(info => {
                     price.textContent = info.platinum != null ? `${info.platinum}p` : "no price";
+                    // Feeds "sort by price"'s cache for free whenever a row
+                    // happens to be at its default rank/refinement - see
+                    // defaultPriceCacheKey's comment for why only the
+                    // default state counts.
+                    if (selectedRank === 0 && currentSubtype() === (item.refinements ? item.defaultSubtype : "regular")) {
+                        clientPriceCache.set(defaultPriceCacheKey(item), info.platinum);
+                    }
                 })
                 .catch(() => {
                     price.textContent = "?";
@@ -710,11 +906,68 @@ searchEl.addEventListener("input", () => {
     render();
 });
 
+// Rarity (Mods/Arcanes) and relic-era filters only make sense - and are
+// only shown - on their one matching tab, never on "All" or each other's
+// tab. Switching away resets the hidden filter back to "All" rather than
+// leaving an invisible filter still silently applied.
+function updateConditionalFilters() {
+    const showRarity = typeFilter === "mod" || typeFilter === "arcane";
+    rarityFilterEl.hidden = !showRarity;
+    if (!showRarity && rarityFilter !== "all") {
+        rarityFilter = "all";
+        rarityFilterEl.querySelectorAll(".filter-btn").forEach(b => b.classList.toggle("active", b.dataset.rarity === "all"));
+    }
+    if (showRarity) {
+        legendaryBtnEl.textContent = typeFilter === "mod" ? "Primed" : "Legendary";
+    }
+
+    const showEra = typeFilter === "relic";
+    eraFilterEl.hidden = !showEra;
+    if (!showEra && eraFilter !== "all") {
+        eraFilter = "all";
+        eraFilterEl.querySelectorAll(".filter-btn").forEach(b => b.classList.toggle("active", b.dataset.era === "all"));
+    }
+}
+
 typeFilterEl.addEventListener("click", e => {
     const btn = e.target.closest(".filter-btn");
     if (!btn) return;
     typeFilterEl.querySelectorAll(".filter-btn").forEach(b => b.classList.toggle("active", b === btn));
     typeFilter = btn.dataset.type;
+    currentPage = 1;
+    updateConditionalFilters();
+    render();
+});
+
+sortSelectEl.addEventListener("change", () => {
+    sortMode = sortSelectEl.value;
+    currentPage = 1;
+    render();
+});
+
+ownedFilterEl.addEventListener("click", e => {
+    const btn = e.target.closest(".filter-btn");
+    if (!btn) return;
+    ownedFilterEl.querySelectorAll(".filter-btn").forEach(b => b.classList.toggle("active", b === btn));
+    ownedFilter = btn.dataset.owned;
+    currentPage = 1;
+    render();
+});
+
+rarityFilterEl.addEventListener("click", e => {
+    const btn = e.target.closest(".filter-btn");
+    if (!btn) return;
+    rarityFilterEl.querySelectorAll(".filter-btn").forEach(b => b.classList.toggle("active", b === btn));
+    rarityFilter = btn.dataset.rarity;
+    currentPage = 1;
+    render();
+});
+
+eraFilterEl.addEventListener("click", e => {
+    const btn = e.target.closest(".filter-btn");
+    if (!btn) return;
+    eraFilterEl.querySelectorAll(".filter-btn").forEach(b => b.classList.toggle("active", b === btn));
+    eraFilter = btn.dataset.era;
     currentPage = 1;
     render();
 });

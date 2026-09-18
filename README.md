@@ -166,6 +166,46 @@ oversell server-side regardless of what this app thinks you own. Prime
 sets skip the display entirely (no single owned count means anything for
 a 4-part bundle; their Sell slot is already the parts-dropdown toggle).
 
+Hovering an item's icon shows a larger preview next to the cursor — handy
+for actually reading a mod's artwork/description at a size the small row
+icon can't.
+
+### Sorting and filtering
+
+A **Sort** dropdown covers Name (A-Z/Z-A), Type, Owned quantity
+(High-Low/Low-High), and Price (Low-High/High-Low). Name and Type sort
+purely off data already in hand — instant. **Owned** sort needs one
+extra request the first time it's used (a single bulk lookup over
+already-in-memory inventory data, no external calls — see
+`GET /api/owned-summary` below), then it's cached for the rest of the
+session. **Price** sort is the one that costs something real: it needs a
+price for every item in the current filtered view, not just the visible
+page, so picking it fetches whatever isn't already cached for the whole
+filtered set (through the same concurrency-limited queue as everything
+else, with the `Loading prices…` indicator showing throughout) before
+sorting. Since prices are cached for a week regardless, this is a
+one-time cost per item that also speeds up later browsing — not a
+repeated one. Items with no known price always sort last, in either
+direction.
+
+An **Owned / Not Owned** filter (next to Sort) uses the same bulk lookup.
+"Owned" here means owning *any* variant of the item at all — any rank for
+a mod/arcane (rank-0 stack plus every ranked copy, summed), any
+refinement for a relic (all 4 summed) — not tied to whatever rank/
+refinement happens to be selected on the stepper.
+
+**Rarity** (Common/Uncommon/Rare/Primed) shows only on the Mods tab,
+and the same filter with a **Legendary** label instead of **Primed**
+shows only on the Arcanes tab — same underlying warframe.market rarity
+tag either way; "Primed" mods (e.g. Primed Continuity) share the exact
+same top tier Legendary Arcanes use, warframe.market doesn't have a
+separate tag for them, so the label is chosen per-tab to match what
+players actually call that tier. **Relic era** (Lith/Meso/Neo/Axi/
+Requiem) shows only on the Relics tab. Both read tags already present in
+warframe.market's bulk item list — no extra lookups. Switching away from
+a tab resets its filter back to "All" rather than leaving it invisibly
+still applied.
+
 ## Setup
 
 1. **Backend**

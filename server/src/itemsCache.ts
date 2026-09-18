@@ -57,6 +57,31 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export type ItemCategory = "Upgrades" | "MiscItems" | "Recipes";
 export type ItemType = "mod" | "arcane" | "relic" | "prime_part" | "prime_set";
 export type PrimeSlot = "blueprint" | "helmet" | "chassis" | "systems";
+export type Rarity = "common" | "uncommon" | "rare" | "legendary";
+export type RelicEra = "lith" | "meso" | "neo" | "axi" | "requiem";
+
+// warframe.market's own rarity tags - present on every mod/arcane except
+// a handful of mission-scanner/locator mods with no rarity at all
+// (confirmed by downloading the full catalog: 1381 of 1391 non-riven mods
+// carry exactly one of these). NOTE: "Primed" mods (e.g. Primed
+// Continuity) use the SAME "legendary" tag Arcanes use for their top
+// tier - warframe.market doesn't have a separate "primed" tag - so the
+// UI labels this tier "Primed" on the Mods tab and "Legendary" on the
+// Arcanes tab, both reading the same underlying value.
+const RARITY_TAGS: Rarity[] = ["common", "uncommon", "rare", "legendary"];
+function extractRarity(tags: string[]): Rarity | null {
+    return RARITY_TAGS.find(r => tags.includes(r)) ?? null;
+}
+
+// Relic era tags, also present directly in the bulk item list - no extra
+// per-item lookups needed. A "vanguard" tag exists too (Vanguard Vault
+// relics) but it's layered ON TOP of one of these 5 (e.g. a Vanguard
+// relic is ALSO tagged "axi"), not a parallel 6th era - confirmed by
+// checking a real example, not guessed.
+const RELIC_ERA_TAGS: RelicEra[] = ["lith", "meso", "neo", "axi", "requiem"];
+function extractRelicEra(tags: string[]): RelicEra | null {
+    return RELIC_ERA_TAGS.find(e => tags.includes(e)) ?? null;
+}
 
 // warframe.market's subtype names -> the real client path suffix for that
 // relic refinement. Source: ExportRelics.json (local Public Export dump),
@@ -81,6 +106,8 @@ export interface MarketItem {
     refinements: string[] | null; // relics only (subset of RELIC_REFINEMENT_SUFFIXES' keys), null otherwise
     parts: { gameRef: string; category: ItemCategory }[] | null; // prime_set only - the member items to grant when buying the whole set
     slot: PrimeSlot | null; // prime_part only - which of the 4 fixed Warframe slots this is, for the UI badge
+    rarity: Rarity | null; // mods/arcanes only, null otherwise
+    relicEra: RelicEra | null; // relics only, null otherwise
 }
 
 // Every Prime Warframe set's 4 part gameRefs follow one of exactly these 4
@@ -141,7 +168,9 @@ function classify(item: WfmItemEntry): MarketItem | null {
             maxRank: item.maxRank ?? null,
             refinements: null,
             parts: null,
-            slot: null
+            slot: null,
+            rarity: extractRarity(item.tags),
+            relicEra: null
         };
     }
 
@@ -157,7 +186,9 @@ function classify(item: WfmItemEntry): MarketItem | null {
             maxRank: item.maxRank ?? null,
             refinements: null,
             parts: null,
-            slot: null
+            slot: null,
+            rarity: extractRarity(item.tags),
+            relicEra: null
         };
     }
 
@@ -176,7 +207,9 @@ function classify(item: WfmItemEntry): MarketItem | null {
             maxRank: null,
             refinements,
             parts: null,
-            slot: null
+            slot: null,
+            rarity: null,
+            relicEra: extractRelicEra(item.tags)
         };
     }
 
@@ -218,7 +251,9 @@ function buildPrimeItems(all: WfmItemEntry[]): MarketItem[] {
                 maxRank: null,
                 refinements: null,
                 parts: null,
-                slot: primeSlotFromGameRef(def.gameRef)
+                slot: primeSlotFromGameRef(def.gameRef),
+                rarity: null,
+                relicEra: null
             });
         }
 
@@ -234,7 +269,9 @@ function buildPrimeItems(all: WfmItemEntry[]): MarketItem[] {
             maxRank: null,
             refinements: null,
             parts: resolvedParts.map(p => p.def),
-            slot: null
+            slot: null,
+            rarity: null,
+            relicEra: null
         });
     }
 

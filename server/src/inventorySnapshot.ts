@@ -12,6 +12,8 @@
 // stale/missing snapshot can at worst let a doomed Sell click through to
 // a normal failed-order toast, never actually oversell anything.
 
+import { RELIC_REFINEMENT_SUFFIXES, type MarketItem } from "./itemsCache.js";
+
 let counts: Record<string, number> = {};
 let receivedAt: number | null = null;
 
@@ -73,4 +75,30 @@ export function takeOidForRank(gameRef: string, rank: number): string | null {
     if (idx === -1) return null;
     const [taken] = list.splice(idx, 1);
     return taken.oid;
+}
+
+export function getRankedInstanceCount(gameRef: string): number {
+    return rankedInstances[gameRef]?.length ?? 0;
+}
+
+// Total owned across every variant of an item - used for the bulk
+// "Owned"/"Not Owned" filter and "sort by owned" (see routes.ts's
+// /api/owned-summary), where a single number per item is needed rather
+// than the per-rank/per-refinement breakdown the other functions here
+// give. Mods/arcanes: rank-0 stack + every ranked instance, any rank.
+// Relics: summed across all 4 refinements (each a distinct real path).
+// Prime parts: their own plain count. Prime sets aren't meaningfully
+// "ownable" as a single unit (buying one grants 4 different real parts,
+// never the set's own path - see itemsCache.ts) - always 0.
+export function getTotalOwned(item: MarketItem): number {
+    if (item.type === "relic") {
+        return Object.values(RELIC_REFINEMENT_SUFFIXES).reduce((sum, suffix) => sum + getOwnedCount(item.gameRef + suffix), 0);
+    }
+    if (item.type === "mod" || item.type === "arcane") {
+        return getOwnedCount(item.gameRef) + getRankedInstanceCount(item.gameRef);
+    }
+    if (item.type === "prime_part") {
+        return getOwnedCount(item.gameRef);
+    }
+    return 0;
 }

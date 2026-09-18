@@ -9,6 +9,7 @@ import {
     setRankedInstances,
     getOwnedRanks,
     takeOidForRank,
+    getTotalOwned,
     type RankedInstance
 } from "./inventorySnapshot.js";
 
@@ -157,6 +158,23 @@ apiRouter.get("/owned-ranks/:slug", async (req, res) => {
         return;
     }
     res.json({ ranks: getOwnedRanks(item.gameRef) });
+});
+
+// Bulk total-owned lookup for the "Owned"/"Not Owned" filter and "sort by
+// owned" - a single request over already-in-memory data (no external
+// calls), keyed by gameRef so the frontend can match it straight against
+// the /api/items list it already has. Prime sets are never included
+// (never meaningfully "owned" as a single unit - see getTotalOwned's
+// module comment); the frontend treats a missing key as 0.
+apiRouter.get("/owned-summary", async (_req, res) => {
+    const items = await getItems();
+    const summary: Record<string, number> = {};
+    for (const item of items) {
+        if (item.type === "prime_set") continue;
+        const total = getTotalOwned(item);
+        if (total > 0) summary[item.gameRef] = total;
+    }
+    res.json({ owned: summary, known: hasInventorySnapshot() });
 });
 
 apiRouter.get("/order/:id", (req, res) => {

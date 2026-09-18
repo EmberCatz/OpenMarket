@@ -86,6 +86,28 @@ main {
     font-weight: 600;
 }
 
+.toolbar-secondary {
+    margin-top: -2px;
+}
+
+/* Rarity/era filter groups are hidden entirely outside their matching
+   tab (Mods/Arcanes for rarity, Relics for era) rather than just
+   disabled, so there's never a hidden-but-still-applied filter state -
+   see app.js's updateConditionalFilters(). */
+#rarity-filter[hidden],
+#era-filter[hidden] {
+    display: none;
+}
+
+#sort-select {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+}
+
 .status-row {
     display: flex;
     align-items: baseline;
@@ -470,3 +492,28 @@ main {
 
 .toast.ok { border-color: var(--buy); }
 .toast.err { border-color: var(--sell); }
+
+/* Larger icon preview shown on hover, positioned via JS to follow the
+   cursor (see app.js's attachIconPreview). pointer-events:none so it
+   never intercepts the mouse events that would hide it. */
+.icon-preview {
+    position: fixed;
+    z-index: 30;
+    pointer-events: none;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.icon-preview[hidden] {
+    display: none;
+}
+
+.icon-preview img {
+    display: block;
+    width: 220px;
+    height: 220px;
+    object-fit: contain;
+}
