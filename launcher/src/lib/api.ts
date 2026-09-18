@@ -26,6 +26,18 @@ export function validatePlutoScriptsDir(dir: string): Promise<boolean> {
     return invoke("validate_pluto_scripts_dir", { dir });
 }
 
+export function checkServerDeps(repoPath: string): Promise<boolean> {
+    return invoke("check_server_deps", { repoPath });
+}
+
+export function installServerDeps(repoPath: string): Promise<void> {
+    return invoke("install_server_deps", { repoPath });
+}
+
+export function installPlutoScript(repoPath: string, scriptsDir: string): Promise<void> {
+    return invoke("install_pluto_script", { repoPath, scriptsDir });
+}
+
 export function startServer(repoPath: string, port: number): Promise<void> {
     return invoke("start_server", { repoPath, port });
 }

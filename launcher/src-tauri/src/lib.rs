@@ -26,6 +26,109 @@ async fn validate_pluto_scripts_dir(dir: String) -> Result<bool, String> {
     Ok(PathBuf::from(&dir).join("Market Sync.pluto").exists())
 }
 
+fn tsx_entry_path(repo_path: &str) -> PathBuf {
+    PathBuf::from(repo_path)
+        .join("server")
+        .join("node_modules")
+        .join("tsx")
+        .join("dist")
+        .join("cli.mjs")
+}
+
+// Whether `server/`'s npm dependencies are installed - specifically
+// whether tsx (what start_server actually invokes) is present, not just
+// whether node_modules/ exists at all.
+#[tauri::command]
+async fn check_server_deps(repo_path: String) -> Result<bool, String> {
+    Ok(tsx_entry_path(&repo_path).exists())
+}
+
+// Runs `npm install` in server/ and streams its output to the same
+// "server-log" event the terminal panel already listens to (prefixed
+// "[install]" so it's distinguishable from runtime server logs). Awaited
+// to completion rather than tracked in ServerProcess - this is a
+// one-shot setup step, not something the launcher needs to be able to
+// kill mid-flight the way the long-running server process is.
+#[tauri::command]
+async fn install_server_deps(app: AppHandle, repo_path: String) -> Result<(), String> {
+    let server_dir = PathBuf::from(&repo_path).join("server");
+    if !server_dir.join("package.json").exists() {
+        return Err(format!("No server/package.json found under {}", repo_path));
+    }
+
+    let _ = app.emit("server-log", "[install] Running npm install in server/ ...".to_string());
+
+    let mut cmd = Command::new("npm");
+    cmd.arg("install")
+        .current_dir(&server_dir)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    #[cfg(target_os = "windows")]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let mut child = cmd.spawn().map_err(|e| format!("Failed to run npm install: {e}"))?;
+    let stdout = child.stdout.take().expect("piped stdout");
+    let stderr = child.stderr.take().expect("piped stderr");
+
+    let app_out = app.clone();
+    let out_task = tauri::async_runtime::spawn(async move {
+        let mut lines = BufReader::new(stdout).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            let _ = app_out.emit("server-log", format!("[install] {line}"));
+        }
+    });
+    let app_err = app.clone();
+    let err_task = tauri::async_runtime::spawn(async move {
+        let mut lines = BufReader::new(stderr).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            let _ = app_err.emit("server-log", format!("[install] {line}"));
+        }
+    });
+
+    let status = child.wait().await.map_err(|e| format!("npm install failed to run: {e}"))?;
+    let _ = out_task.await;
+    let _ = err_task.await;
+
+    if status.success() {
+        let _ = app.emit("server-log", "[install] npm install finished successfully.".to_string());
+        Ok(())
+    } else {
+        Err(format!("npm install exited with status {status}"))
+    }
+}
+
+// Copies scripts/Market Sync.pluto from the OpenMarket repo into the
+// user's configured Pluto scripts folder - but ONLY if it's not already
+// there. Never overwrites: the destination copy may have been
+// deliberately edited in-game (dev-vs-live convention elsewhere in this
+// project draws the same line), and silently clobbering that would be a
+// real loss, not a convenience.
+#[tauri::command]
+async fn install_pluto_script(app: AppHandle, repo_path: String, scripts_dir: String) -> Result<(), String> {
+    let source = PathBuf::from(&repo_path).join("scripts").join("Market Sync.pluto");
+    if !source.exists() {
+        return Err(format!(
+            "{} not found - is the repo path pointing at a real OpenMarket checkout?",
+            source.display()
+        ));
+    }
+    let dest_dir = PathBuf::from(&scripts_dir);
+    if !dest_dir.is_dir() {
+        return Err(format!("{} is not a folder", dest_dir.display()));
+    }
+    let dest = dest_dir.join("Market Sync.pluto");
+    if dest.exists() {
+        return Ok(());
+    }
+    std::fs::copy(&source, &dest).map_err(|e| format!("Failed to copy Market Sync.pluto: {e}"))?;
+    let _ = app.emit("server-log", format!("[install] Copied Market Sync.pluto to {}", dest_dir.display()));
+    Ok(())
+}
+
 #[tauri::command]
 async fn start_server(
     app: AppHandle,
@@ -39,12 +142,11 @@ async fn start_server(
     }
 
     let server_dir = PathBuf::from(&repo_path).join("server");
-    let tsx_entry = server_dir.join("node_modules").join("tsx").join("dist").join("cli.mjs");
+    let tsx_entry = tsx_entry_path(&repo_path);
     if !tsx_entry.exists() {
         return Err(format!(
-            "tsx not found at {} - run `npm install` in {} first.",
-            tsx_entry.display(),
-            server_dir.display()
+            "tsx not found at {} - run Install first.",
+            tsx_entry.display()
         ));
     }
 
@@ -148,6 +250,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             validate_repo_path,
             validate_pluto_scripts_dir,
+            check_server_deps,
+            install_server_deps,
+            install_pluto_script,
             start_server,
             stop_server,
             is_server_running,

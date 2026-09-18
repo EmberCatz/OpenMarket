@@ -5,7 +5,10 @@ import { listen } from "@tauri-apps/api/event";
 import "./App.css";
 import { DEFAULT_CONFIG, loadConfig, saveConfig, type LauncherConfig } from "./lib/config";
 import {
+    checkServerDeps,
     fetchServerStatus,
+    installPlutoScript,
+    installServerDeps,
     isServerRunning,
     KNOWN_STATUS_SCHEMA_VERSION,
     startServer,
@@ -43,6 +46,8 @@ export default function App() {
     const [logLines, setLogLines] = useState<string[]>([]);
     const [repoPathValid, setRepoPathValid] = useState<boolean | null>(null);
     const [plutoDirValid, setPlutoDirValid] = useState<boolean | null>(null);
+    const [depsReady, setDepsReady] = useState<boolean | null>(null);
+    const [installing, setInstalling] = useState(false);
 
     const autoOpenPending = useRef(false);
     const logEndRef = useRef<HTMLDivElement>(null);
@@ -113,15 +118,29 @@ export default function App() {
         };
     }, [configLoaded, config.port]);
 
-    // --- Auto-launch on startup, once, if configured ---
+    // Whether there's anything left to install before Launch makes sense.
+    // An unconfigured Pluto scripts dir is NOT a reason to require
+    // install - it's optional (the launcher only ever observes the
+    // script, never depends on it to run the server) - only a
+    // *configured-but-invalid* one counts, since that's the user having
+    // pointed at the wrong folder.
+    const needsInstall =
+        !config.repoPath || repoPathValid === false || depsReady === false || (config.plutoScriptsDir !== "" && plutoDirValid === false);
+    const depsChecking = repoPathValid === true && depsReady === null;
+
+    // --- Auto-launch on startup, once, if configured AND already fully
+    // set up. Re-evaluates as the async validation/deps checks resolve
+    // after mount (not just once) but the ref still guarantees it only
+    // ever actually launches once. ---
     useEffect(() => {
         if (!configLoaded || autoLaunchTried.current) return;
+        if (!config.autoLaunch || !config.repoPath) return;
+        if (repoPathValid === null || depsChecking) return; // still checking, wait for a real answer
+        if (needsInstall) return; // don't auto-launch a broken/incomplete setup
         autoLaunchTried.current = true;
-        if (config.autoLaunch && config.repoPath) {
-            handleLaunch();
-        }
+        handleLaunch();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [configLoaded]);
+    }, [configLoaded, repoPathValid, depsReady, plutoDirValid]);
 
     // --- Validate configured paths whenever they change ---
     useEffect(() => {
@@ -140,6 +159,18 @@ export default function App() {
         validatePlutoScriptsDir(config.plutoScriptsDir).then(setPlutoDirValid).catch(() => setPlutoDirValid(false));
     }, [config.plutoScriptsDir]);
 
+    // --- Check whether server/'s npm deps are installed, once the repo
+    // path itself checks out. Re-runs after a successful install too
+    // (depsReady flips straight to true there without waiting on this
+    // effect, but this keeps it honest on a later repoPath change). ---
+    useEffect(() => {
+        if (repoPathValid !== true) {
+            setDepsReady(null);
+            return;
+        }
+        checkServerDeps(config.repoPath).then(setDepsReady).catch(() => setDepsReady(false));
+    }, [repoPathValid, config.repoPath]);
+
     async function handleLaunch() {
         setError(null);
         if (!config.repoPath) {
@@ -156,6 +187,36 @@ export default function App() {
             setError(String(e));
         } finally {
             setBusy(false);
+        }
+    }
+
+    async function handleInstall() {
+        setError(null);
+        if (!config.repoPath) {
+            setError("Set the OpenMarket repo path in Settings first.");
+            setSettingsOpen(true);
+            return;
+        }
+        if (repoPathValid === false) {
+            setError("The configured repo path doesn't have server/package.json - check it in Settings.");
+            setSettingsOpen(true);
+            return;
+        }
+        setInstalling(true);
+        setTerminalOpen(true);
+        try {
+            if (depsReady === false) {
+                await installServerDeps(config.repoPath);
+                setDepsReady(true);
+            }
+            if (config.plutoScriptsDir && plutoDirValid === false) {
+                await installPlutoScript(config.repoPath, config.plutoScriptsDir);
+                setPlutoDirValid(true);
+            }
+        } catch (e) {
+            setError(String(e));
+        } finally {
+            setInstalling(false);
         }
     }
 
@@ -264,15 +325,38 @@ export default function App() {
                             </div>
                         )}
 
-                        <button className="launch-btn" onClick={handleLaunch} disabled={busy || processAlive}>
-                            {processAlive ? "Running" : "▶ Launch App"}
+                        <button
+                            className="launch-btn"
+                            onClick={needsInstall ? handleInstall : handleLaunch}
+                            disabled={busy || processAlive || installing || depsChecking}
+                        >
+                            {processAlive
+                                ? "Running"
+                                : installing
+                                ? "Installing..."
+                                : depsChecking
+                                ? "Checking..."
+                                : needsInstall
+                                ? "⬇ Install"
+                                : "▶ Launch App"}
                         </button>
+                        {needsInstall && !installing && config.repoPath && repoPathValid !== false && (
+                            <div className="install-hint">
+                                Will set up:{" "}
+                                {[
+                                    depsReady === false && "server dependencies (npm install)",
+                                    config.plutoScriptsDir && plutoDirValid === false && "Market Sync.pluto in your scripts folder"
+                                ]
+                                    .filter(Boolean)
+                                    .join(", ") || "nothing yet - set the repo path in Settings"}
+                            </div>
+                        )}
 
                         <div className="secondary-actions">
                             <button onClick={handleStop} disabled={busy || !processAlive}>
                                 Stop
                             </button>
-                            <button onClick={handleRestart} disabled={busy || !config.repoPath}>
+                            <button onClick={handleRestart} disabled={busy || !config.repoPath || needsInstall}>
                                 Restart
                             </button>
                             <button
@@ -316,7 +400,7 @@ export default function App() {
                         </div>
                         <h3>Troubleshooting</h3>
                         <ul>
-                            <li><strong>Server stuck on "Starting...":</strong> check the terminal panel below for a stack trace - usually a missing `npm install` in `server/`.</li>
+                            <li><strong>Server stuck on "Starting...":</strong> check the terminal panel below for a stack trace. If the button still says "Install" instead of "Launch App", run that first.</li>
                             <li><strong>Database stays "Disconnected":</strong> `price-history.seed.json` failed to load - check it exists in the repo's `server/` folder.</li>
                             <li><strong>Pluto Client never connects:</strong> the launcher only observes; you still have to start Market Sync.pluto yourself in-game. Check the Bootstrapper's script_log at http://localhost:6155/script_log for errors.</li>
                             <li><strong>Port already in use:</strong> another instance (or a manual `npm start`) is likely already bound to it - change the port in Settings or stop the other instance.</li>
