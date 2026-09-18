@@ -29,7 +29,11 @@ apiRouter.get("/price/:slug", async (req, res) => {
     const subtype = typeof req.query.subtype === "string" ? req.query.subtype : "regular";
     const rank = typeof req.query.rank === "string" ? parseInt(req.query.rank, 10) || 0 : 0;
     try {
-        res.json(await getPrice(req.params.slug, subtype, rank));
+        // maxRank bounds the rank-interpolation fallback (see priceCache.ts) -
+        // only mods/arcanes have one, everything else passes null and just
+        // skips that fallback entirely.
+        const item = await findItemBySlug(req.params.slug);
+        res.json(await getPrice(req.params.slug, subtype, rank, item?.maxRank ?? null));
     } catch (err) {
         res.status(502).json({ error: `Failed to load price from warframe.market: ${(err as Error).message}` });
     }

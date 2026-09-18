@@ -86,11 +86,36 @@ main {
     font-weight: 600;
 }
 
+.status-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
 .status {
     color: var(--muted);
     font-size: 0.85rem;
     min-height: 1.2em;
-    margin-bottom: 8px;
+}
+
+/* Shown whenever any price/owned-count/owned-rank fetch is still
+   in-flight or queued (derived straight from the shared fetch queue in
+   app.js) - so a page that looks "done" (rows rendered) but still has
+   values trickling in doesn't read as broken/stuck. */
+.price-loading {
+    color: var(--accent);
+    font-size: 0.8rem;
+    animation: price-loading-pulse 1.4s ease-in-out infinite;
+}
+
+.price-loading[hidden] {
+    display: none;
+}
+
+@keyframes price-loading-pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
 }
 
 .mod-list {

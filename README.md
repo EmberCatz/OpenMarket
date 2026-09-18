@@ -59,6 +59,39 @@ Both are meant for the script only, not the browser — there's no auth on
 them because everything here is meant to run on localhost for one account.
 **Don't expose this backend beyond localhost.**
 
+## Pricing
+
+Prices are **not** fetched live on every page load. The backend caches
+each item's full warframe.market order book the first time it's actually
+looked up, then reuses that cache for **1 week** before checking again -
+persisted to `server/price-cache.json` so a restart doesn't throw the
+week away. This eliminates the "…" loading state and rate-limiting
+concerns a fully-live model had (a broad search used to fire dozens of
+simultaneous warframe.market calls). A `Loading prices…` indicator near
+the search bar shows only while something's still actually in flight
+(itself and the owned-count/owned-rank lookups share one small
+concurrency-limited queue), so a page that's rendered but still waiting
+on a few values never reads as silently stuck.
+
+If a specific rank/refinement isn't currently listed at all, two
+fallbacks apply in order, both scoped to that *exact* item+rank/subtype:
+
+1. **The last real price ever observed for it**, if any - never expires
+   on its own, only replaced by a fresher real observation. An item that
+   had a real listing once, then none for six weeks, then a new one,
+   shows the six-week-old price the whole time in between rather than
+   flipping to "no price" and back.
+2. **Rank interpolation** (mods/arcanes only) - if that exact rank has
+   *never* had a real price, linearly interpolate between whichever
+   other ranks of the same item do (live or remembered via #1), or clamp
+   to the nearest single known rank rather than extrapolating past it.
+   Doesn't assume rank 0 or max-rank specifically exist as anchors - it
+   uses whatever's actually known, which is what makes it not break for
+   an item whose max rank has simply never traded.
+
+Only when neither applies does a price genuinely read as "no price" -
+meaning that exact combination has never once been seen listed.
+
 ## Why Node/Express/TypeScript
 
 SpaceNinjaServer's own backend is Node/Express/TypeScript. Keeping this in
@@ -145,6 +178,11 @@ a 4-part bundle; their Sell slot is already the parts-dropdown toggle).
 
 3. **Open the shop** — `http://127.0.0.1:7890/` in a browser while the
    game is running. Search a mod, hit Buy or Sell.
+
+The backend writes `server/price-cache.json` as it looks things up (see
+[Pricing](#pricing)) - gitignored, safe to delete any time to force a
+fresh look at the market for everything, though normally there's no
+reason to.
 
 Optional: `scripts/Market Sell Probe.pluto` is a one-shot diagnostic that
 tests the trickiest call (`/api/sell.php`) in isolation — grants a cheap

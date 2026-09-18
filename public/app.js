@@ -19,11 +19,23 @@ function pumpFetchQueue() {
     while (activeFetches < FETCH_CONCURRENCY && fetchQueue.length > 0) {
         const task = fetchQueue.shift();
         activeFetches++;
+        updatePriceLoadingIndicator();
         task().finally(() => {
             activeFetches--;
+            updatePriceLoadingIndicator();
             pumpFetchQueue();
         });
     }
+}
+
+// Shows "Loading prices..." for as long as anything is still in-flight or
+// queued through the shared fetch queue (price/owned-count/owned-rank
+// lookups all go through it) - so a page whose rows have already
+// rendered but whose values are still trickling in doesn't read as
+// finished/stuck. Derived straight from the queue's own counters rather
+// than tracked separately, so it can never drift out of sync with them.
+function updatePriceLoadingIndicator() {
+    priceLoadingEl.hidden = activeFetches === 0 && fetchQueue.length === 0;
 }
 
 function delay(ms) {
@@ -47,6 +59,7 @@ async function fetchJsonWithRetry(url, attempt = 0) {
 }
 
 const statusEl = document.getElementById("status");
+const priceLoadingEl = document.getElementById("price-loading");
 const searchEl = document.getElementById("search");
 const listEl = document.getElementById("mod-list");
 const rowTemplate = document.getElementById("mod-row-template");
