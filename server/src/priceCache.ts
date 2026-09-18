@@ -1,199 +1,214 @@
-// Weekly, per-slug, disk-persisted price cache - replaces the old
-// "live-fetch on every request, 5-minute TTL" model. That model meant
-// every page load fired a fresh warframe.market call per visible row
-// (throttled client-side to avoid rate-limiting, but still real load,
-// real delay, and a "..." shown on every render). Prices don't move fast
-// enough to justify that: fetch a slug's order book lazily on first
-// request, then reuse it for CACHE_MS (1 week) before checking again.
+// Weekly historical-median price cache, sourced from warframe.market's
+// LEGACY v1 statistics endpoint (see warframeMarketApi.ts's
+// fetchStatistics90Days - v2 has no equivalent, checked not guessed).
+// Replaces the previous live-order-book model entirely: instead of
+// fetching current listings on demand and falling back to a remembered
+// price when nothing's currently for sale, this pre-computes ONE number
+// per (item, rank/refinement) - the median of that variant's last-90-days
+// daily median prices (each day's median already computed by
+// warframe.market from real closed trades, not derived here) - via a
+// background sweep over the whole catalog, refreshed weekly. Serving a
+// price is then a synchronous in-memory lookup with ZERO network calls
+// at request time, eliminating the "prices load slowly" problem at its
+// root rather than just caching around it.
 //
-// Two-layer fallback for a specific (slug, subtype, rank) that ISN'T
-// currently listed:
-//   1. lastKnownPrices - a price we ourselves have actually observed for
-//      this EXACT combo before, at any point in the past. Never expires
-//      on its own, only ever overwritten by a fresher real observation.
-//      If an item has a real price this week, none for the next 6, then
-//      a real price again, we show the 6-week-old one the whole time in
-//      between rather than flipping to "no price" - it's a better guess
-//      than nothing, and gets corrected the moment a fresh one appears.
-//   2. Rank interpolation (subtype "regular" only) - if THIS exact rank
-//      has never had a real price at all, linearly interpolate between
-//      the nearest ranks (0..maxRank) that DO have a price (live or
-//      remembered via #1), or clamp to whichever single side is known,
-//      rather than assuming fixed 0/max-rank anchors always exist.
-// Only after both layers come up empty does a price genuinely read as
-// "no price" - meaning this exact combo has never once been observed
-// listed, not just "not listed this week".
+// Rank interpolation (mods/arcanes only) is carried over from the
+// previous design, unchanged in spirit - if a specific rank genuinely
+// has no trade history in the last 90 days, linearly interpolate between
+// neighboring ranks that do (or clamp to the nearest single one), rather
+// than assuming fixed 0/max-rank anchors exist.
+//
+// One real cost of this whole design: it depends on a v1 endpoint that
+// could be deprecated at any time (unlike v2, which is the actively
+// maintained API) - there's no fallback if warframe.market ever removes
+// it. Confirmed still live 2026-09-18; if it ever starts 404ing, every
+// slug's refresh just fails and keeps serving whatever the last
+// successful sweep found (see refreshOneSlug), so a removal would show
+// up as prices gradually going stale/missing over following weeks, not
+// a sudden break.
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { fetchOrdersForItem, type WfmOrderEntry } from "./warframeMarketApi.js";
+import { fetchStatistics90Days, WfmHttpError, type WfmStatisticsEntry } from "./warframeMarketApi.js";
+import { getItems } from "./itemsCache.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CACHE_FILE = path.join(__dirname, "../price-cache.json");
-const CACHE_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
+const HISTORY_FILE = path.join(__dirname, "../price-history.json");
+const REFRESH_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // weekly
 
-interface SlugOrdersEntry {
-    orders: WfmOrderEntry[];
-    fetchedAt: number;
-}
+// MEASURED, not assumed: 5 CONCURRENT requests against this v1 endpoint
+// triggered near-immediate 429s (confirmed live 2026-09-18 - almost every
+// request failed within the first few seconds of a real sweep attempt).
+// Fully SEQUENTIAL requests (one in flight at a time) did not - 190/190
+// succeeded across three separate test runs, including a zero-artificial-
+// delay run where natural network round-trip time alone paced it to
+// ~5-6/sec. This looks like a concurrent-connections limit rather than a
+// requests-per-second one, so the fix is "never overlap calls" plus a
+// small safety-margin delay, not a slower rate as such. At this pace, a
+// full ~2500-item sweep takes roughly 7-8 minutes, not the 1-2 a naive
+// concurrency-5 estimate would suggest.
+const REQUEST_DELAY_MS = 150;
+const RATE_LIMIT_RETRY_DELAYS_MS = [2000, 5000, 10000];
 
-interface LastKnownPrice {
-    platinum: number;
-    observedAt: number;
-}
+// slug -> variant key -> median platinum for that variant over the last
+// 90 days. Variant key is "rank:<N>" for mods/arcanes, "subtype:<name>"
+// for relics, or "default" for anything with neither (Prime parts/sets).
+let priceHistory: Record<string, Record<string, number>> = {};
+let lastRefreshCompletedAt: number | null = null;
+let refreshInProgress = false;
 
 interface DiskCache {
-    slugOrders: Record<string, SlugOrdersEntry>;
-    lastKnownPrices: Record<string, LastKnownPrice>;
+    priceHistory: Record<string, Record<string, number>>;
+    lastRefreshCompletedAt: number | null;
 }
 
-let slugOrders: Record<string, SlugOrdersEntry> = {};
-let lastKnownPrices: Record<string, LastKnownPrice> = {};
-
 function loadFromDisk(): void {
-    if (!existsSync(CACHE_FILE)) return;
+    if (!existsSync(HISTORY_FILE)) return;
     try {
-        const parsed = JSON.parse(readFileSync(CACHE_FILE, "utf8")) as DiskCache;
-        slugOrders = parsed.slugOrders ?? {};
-        lastKnownPrices = parsed.lastKnownPrices ?? {};
+        const parsed = JSON.parse(readFileSync(HISTORY_FILE, "utf8")) as DiskCache;
+        priceHistory = parsed.priceHistory ?? {};
+        lastRefreshCompletedAt = parsed.lastRefreshCompletedAt ?? null;
     } catch (err) {
-        console.error(`Failed to load ${CACHE_FILE}, starting with an empty price cache:`, err);
+        console.error(`Failed to load ${HISTORY_FILE}, starting empty:`, err);
     }
 }
 loadFromDisk();
 
-// Debounced - a burst of lazy fetches (e.g. loading a fresh page of
-// results) would otherwise trigger a disk write per item.
-let saveTimer: ReturnType<typeof setTimeout> | null = null;
-function scheduleSave(): void {
-    if (saveTimer) return;
-    saveTimer = setTimeout(() => {
-        saveTimer = null;
-        try {
-            const disk: DiskCache = { slugOrders, lastKnownPrices };
-            writeFileSync(CACHE_FILE, JSON.stringify(disk));
-        } catch (err) {
-            console.error(`Failed to save ${CACHE_FILE}:`, err);
-        }
-    }, 2000);
-}
-
-const inFlight = new Map<string, Promise<WfmOrderEntry[]>>();
-
-async function getOrdersForSlug(slug: string): Promise<WfmOrderEntry[]> {
-    const hit = slugOrders[slug];
-    if (hit && Date.now() - hit.fetchedAt < CACHE_MS) {
-        return hit.orders;
+function saveToDisk(): void {
+    try {
+        const disk: DiskCache = { priceHistory, lastRefreshCompletedAt };
+        writeFileSync(HISTORY_FILE, JSON.stringify(disk));
+    } catch (err) {
+        console.error(`Failed to save ${HISTORY_FILE}:`, err);
     }
-    const existing = inFlight.get(slug);
-    if (existing) return existing;
-
-    const promise = (async () => {
-        try {
-            const orders = await fetchOrdersForItem(slug);
-            slugOrders[slug] = { orders, fetchedAt: Date.now() };
-            scheduleSave();
-            return orders;
-        } finally {
-            inFlight.delete(slug);
-        }
-    })();
-    inFlight.set(slug, promise);
-    return promise;
 }
+
+function median(values: number[]): number {
+    const sorted = [...values].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
+function variantKey(entry: WfmStatisticsEntry): string {
+    if (typeof entry.mod_rank === "number") return `rank:${entry.mod_rank}`;
+    if (typeof entry.subtype === "string") return `subtype:${entry.subtype}`;
+    return "default";
+}
+
+function sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// A 429 here gets its own retry-with-backoff (distinct from just logging
+// and moving on) since it means the sweep itself briefly exceeded the
+// concurrent-request limit - worth a real second attempt rather than
+// silently leaving that one slug stale for a week. Any OTHER failure
+// (network hiccup, a slug warframe.market doesn't recognize) isn't
+// retried - it'll be tried again on the next weekly sweep regardless.
+async function refreshOneSlug(slug: string): Promise<void> {
+    for (let attempt = 0; ; attempt++) {
+        try {
+            const entries = await fetchStatistics90Days(slug);
+            const grouped = new Map<string, number[]>();
+            for (const e of entries) {
+                const key = variantKey(e);
+                if (!grouped.has(key)) grouped.set(key, []);
+                grouped.get(key)!.push(e.median);
+            }
+            const perVariant: Record<string, number> = {};
+            for (const [key, medians] of grouped) {
+                perVariant[key] = Math.round(median(medians));
+            }
+            priceHistory[slug] = perVariant;
+            return;
+        } catch (err) {
+            const isRateLimit = err instanceof WfmHttpError && err.status === 429;
+            if (isRateLimit && attempt < RATE_LIMIT_RETRY_DELAYS_MS.length) {
+                await sleep(RATE_LIMIT_RETRY_DELAYS_MS[attempt]);
+                continue;
+            }
+            // Leave whatever was there before (if anything) rather than
+            // wiping a slug's history over this failure - the next
+            // weekly sweep tries again from scratch.
+            console.error(`Price history: failed to refresh "${slug}":`, (err as Error).message);
+            return;
+        }
+    }
+}
+
+// Runs a full sweep over the current catalog, ONE slug at a time - see
+// REQUEST_DELAY_MS's comment for why this is sequential rather than
+// concurrent. Not awaited by anything request-facing. Saves to disk once
+// at the end rather than per-slug: a partial/interrupted sweep still
+// leaves the previous week's (still-reasonable) data in place for
+// whatever hadn't been reached yet, and ~2500 individual disk writes
+// would be wasteful.
+async function runRefreshSweep(): Promise<void> {
+    if (refreshInProgress) return;
+    refreshInProgress = true;
+    try {
+        const items = await getItems();
+        const slugs = [...new Set(items.map(i => i.slug))];
+        console.log(`Price history: starting a refresh sweep over ${slugs.length} items (roughly ${Math.round((slugs.length * REQUEST_DELAY_MS) / 60000)} minutes at this pace)...`);
+
+        for (const slug of slugs) {
+            await refreshOneSlug(slug);
+            await sleep(REQUEST_DELAY_MS);
+        }
+
+        lastRefreshCompletedAt = Date.now();
+        saveToDisk();
+        console.log(`Price history: refresh sweep complete (${slugs.length} items).`);
+    } finally {
+        refreshInProgress = false;
+    }
+}
+
+export function ensureFreshPriceHistory(): void {
+    if (lastRefreshCompletedAt === null || Date.now() - lastRefreshCompletedAt > REFRESH_INTERVAL_MS) {
+        void runRefreshSweep();
+    }
+}
+
+// Only ensureFreshPriceHistory() at module load checks staleness, and
+// that's only evaluated once at server startup - this catches the case
+// where the server stays running for more than a week straight without
+// a restart.
+setInterval(ensureFreshPriceHistory, 60 * 60 * 1000); // hourly check
+ensureFreshPriceHistory();
 
 export interface PriceInfo {
     slug: string;
-    platinum: number | null; // null only if this exact combo has NEVER been observed listed
-    sampleSize: number; // 0 for a remembered/interpolated price, not a live count
-    approx: boolean; // true if interpolated from neighboring ranks rather than observed directly
-    stale: boolean; // true if this is a remembered price, not currently listed this week
+    platinum: number | null;
+    sampleSize: number; // always 0 - kept for API shape compatibility, not a meaningful live order count anymore
+    approx: boolean; // true if interpolated from neighboring ranks rather than having its own 90-day trade history
 }
 
-// Many real orders just omit "subtype"/"rank" entirely for the plain/
-// unranked baseline instead of writing it explicitly - treat a missing
-// value as a match for the DEFAULT case only ("regular" subtype, rank 0).
-// Any other requested value still needs an exact match - a missing field
-// is never assumed to mean "intact" or "rank 5", only the baseline.
-function subtypeMatches(orderSubtype: string | undefined, wanted: string): boolean {
-    if (orderSubtype === wanted) return true;
-    return wanted === "regular" && orderSubtype === undefined;
-}
-
-function rankMatches(orderRank: number | undefined, wanted: number): boolean {
-    if (orderRank === wanted) return true;
-    return wanted === 0 && orderRank === undefined;
-}
-
-// Lowest visible, matching-subtype-and-rank, currently online seller's
-// asking price - null if nobody's currently selling exactly that.
-function computeLivePrice(subtype: string, rank: number, orders: WfmOrderEntry[]): { platinum: number; sampleSize: number } | null {
-    const eligible = orders.filter(
-        o =>
-            o.type === "sell" &&
-            o.visible &&
-            subtypeMatches(o.subtype, subtype) &&
-            rankMatches(o.rank, rank) &&
-            o.user.status !== "offline"
-    );
-    if (eligible.length > 0) {
-        return { platinum: Math.min(...eligible.map(o => o.platinum)), sampleSize: eligible.length };
-    }
-    // Fall back to any visible sell order of the right subtype+rank
-    // (online-only filter too strict, or everyone's offline).
-    const anySell = orders.filter(
-        o => o.type === "sell" && o.visible && subtypeMatches(o.subtype, subtype) && rankMatches(o.rank, rank)
-    );
-    return anySell.length > 0 ? { platinum: Math.min(...anySell.map(o => o.platinum)), sampleSize: anySell.length } : null;
-}
-
-// Live price if listed right now, else the last real price ever observed
-// for this exact combo (never expires on its own). Opportunistically
-// records a fresh live price into lastKnownPrices as a side effect.
-function resolvePrice(
-    key: string,
-    subtype: string,
-    rank: number,
-    orders: WfmOrderEntry[]
-): { platinum: number; sampleSize: number; stale: boolean } | null {
-    const live = computeLivePrice(subtype, rank, orders);
-    if (live !== null) {
-        lastKnownPrices[key] = { platinum: live.platinum, observedAt: Date.now() };
-        return { platinum: live.platinum, sampleSize: live.sampleSize, stale: false };
-    }
-    const remembered = lastKnownPrices[key];
-    return remembered ? { platinum: remembered.platinum, sampleSize: 0, stale: true } : null;
-}
-
-export async function getPrice(
-    slug: string,
-    subtype: string = "regular",
-    rank: number = 0,
-    maxRank: number | null = null
-): Promise<PriceInfo> {
-    const orders = await getOrdersForSlug(slug);
-    const key = `${slug}:${subtype}:${rank}`;
-
-    const direct = resolvePrice(key, subtype, rank, orders);
-    if (direct) {
-        scheduleSave();
-        return { slug, platinum: direct.platinum, sampleSize: direct.sampleSize, approx: false, stale: direct.stale };
+// Synchronous - no network call happens here at all, only a plain object
+// lookup against whatever the last completed sweep found.
+export function getPrice(slug: string, subtype: string = "regular", rank: number = 0, maxRank: number | null = null): PriceInfo {
+    const perVariant = priceHistory[slug];
+    if (!perVariant) {
+        return { slug, platinum: null, sampleSize: 0, approx: false };
     }
 
-    // This exact rank has never once been listed/remembered - try
-    // interpolating from whichever OTHER ranks of the same item do have
-    // a live-or-remembered price. Only meaningful for the plain rank
-    // ladder (mods/arcanes), not relic refinements or non-rankable items.
-    if (subtype === "regular" && maxRank !== null && maxRank > 0) {
+    const isRankLadder = subtype === "regular" && maxRank !== null && maxRank > 0;
+    const key = subtype !== "regular" ? `subtype:${subtype}` : isRankLadder ? `rank:${rank}` : "default";
+
+    if (perVariant[key] != null) {
+        return { slug, platinum: perVariant[key], sampleSize: 0, approx: false };
+    }
+
+    // This exact rank has no trade history in the last 90 days - try
+    // interpolating from whichever OTHER ranks of the same item do.
+    // Never assumes rank 0 or max rank specifically exist as anchors.
+    if (isRankLadder) {
         const known: { rank: number; platinum: number }[] = [];
         for (let r = 0; r <= maxRank; r++) {
-            const candidateKey = `${slug}:${subtype}:${r}`;
-            const candidate = resolvePrice(candidateKey, subtype, r, orders);
-            if (candidate) known.push({ rank: r, platinum: candidate.platinum });
+            const rKey = `rank:${r}`;
+            if (perVariant[rKey] != null) known.push({ rank: r, platinum: perVariant[rKey] });
         }
-        scheduleSave();
-
         if (known.length > 0) {
             let lower: { rank: number; platinum: number } | null = null;
             let upper: { rank: number; platinum: number } | null = null;
@@ -208,9 +223,9 @@ export async function getPrice(
             } else {
                 platinum = (lower ?? upper!).platinum;
             }
-            return { slug, platinum, sampleSize: 0, approx: true, stale: false };
+            return { slug, platinum, sampleSize: 0, approx: true };
         }
     }
 
-    return { slug, platinum: null, sampleSize: 0, approx: false, stale: false };
+    return { slug, platinum: null, sampleSize: 0, approx: false };
 }

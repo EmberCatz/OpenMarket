@@ -61,43 +61,53 @@ them because everything here is meant to run on localhost for one account.
 
 ## Pricing
 
-Prices are **not** fetched live on every page load. The backend caches
-each item's full warframe.market order book the first time it's actually
-looked up, then reuses that cache for **1 week** before checking again -
-persisted to `server/price-cache.json` so a restart doesn't throw the
-week away. This eliminates the "…" loading state and rate-limiting
-concerns a fully-live model had (a broad search used to fire dozens of
-simultaneous warframe.market calls). A `Loading prices…` indicator near
-the search bar shows only while something's still actually in flight
-(itself and the owned-count/owned-rank lookups share one small
-concurrency-limited queue), so a page that's rendered but still waiting
-on a few values never reads as silently stuck.
+Prices are **90-day historical medians**, not live order-book snapshots.
+A background sweep over the whole catalog fetches each item's daily
+median price for the last 90 days (warframe.market computes each day's
+number itself, from real closed trades — this app just takes the median
+*of* those ~30-90 daily numbers) and stores one platinum figure per item
+per rank/refinement, persisted to `server/price-history.json`. Serving a
+price is then a plain in-memory lookup with **zero network calls at
+request time** — every price on a page, and even sorting the entire
+catalog by price, resolves in milliseconds. The whole sweep re-runs
+**weekly**; a 90-day rolling window barely shifts day to day, so this
+stays current without needing to be more frequent.
+
+This is the **legacy v1 API** — v2 (used for everything else in this
+app) has no equivalent endpoint at all (checked directly: none of
+`/v2/item/:slug/statistics`, `/v2/items/:slug/statistics`, or
+`/v2/statistics/:slug` exist). It's the only source of real historical
+price data available at all, but unlike v2 it's not guaranteed to keep
+being maintained — if warframe.market ever removes it, prices would
+gradually go stale/missing over the following weeks rather than breaking
+outright, since a failed sweep just leaves the previous week's data in
+place.
+
+**Rate limiting, measured not assumed**: firing 5 concurrent requests
+against this endpoint triggered near-immediate `429`s; a fully
+*sequential* sweep (one request in flight at a time, ~150ms apart) did
+not, across 2558 real items with zero failures. This looks like a
+concurrent-connections limit rather than a requests-per-second one — the
+fix was going sequential, not slower. A full sweep takes roughly 6-8
+minutes; the first one (nothing cached yet) runs automatically on
+startup in the background without blocking the app, so browsing works
+immediately, just without prices for anything the sweep hasn't reached
+yet.
+
+If a specific rank has no trade history in the last 90 days at all,
+**rank interpolation** (mods/arcanes only) linearly interpolates between
+whichever other ranks of the same item do have history, or clamps to the
+nearest single known rank rather than extrapolating past it. Doesn't
+assume rank 0 or max-rank specifically exist as anchors, which is what
+keeps it from breaking for an item whose max rank has simply never
+traded. Relic refinements get no such fallback (refinement isn't a
+numeric ladder the same way rank is) — a refinement with zero trades in
+90 days just reads "no price".
 
 A **"?"** anywhere (price, a ranked-copy dropdown line's price, or
 "Owned: ?") is clickable to retry just that one value instead of waiting
-for the next full re-render. For price it always means the fetch itself
-failed (a genuine "nothing's ever sold" answer shows "no price" instead);
-"Owned: ?" covers both a failed fetch and no inventory sync having landed
-yet, since retrying is harmless and useful either way.
-
-If a specific rank/refinement isn't currently listed at all, two
-fallbacks apply in order, both scoped to that *exact* item+rank/subtype:
-
-1. **The last real price ever observed for it**, if any - never expires
-   on its own, only replaced by a fresher real observation. An item that
-   had a real listing once, then none for six weeks, then a new one,
-   shows the six-week-old price the whole time in between rather than
-   flipping to "no price" and back.
-2. **Rank interpolation** (mods/arcanes only) - if that exact rank has
-   *never* had a real price, linearly interpolate between whichever
-   other ranks of the same item do (live or remembered via #1), or clamp
-   to the nearest single known rank rather than extrapolating past it.
-   Doesn't assume rank 0 or max-rank specifically exist as anchors - it
-   uses whatever's actually known, which is what makes it not break for
-   an item whose max rank has simply never traded.
-
-Only when neither applies does a price genuinely read as "no price" -
-meaning that exact combination has never once been seen listed.
+for the next full re-render — now a much rarer thing to see for price
+specifically, since there's no live network call left to fail.
 
 ## Why Node/Express/TypeScript
 
@@ -178,15 +188,14 @@ purely off data already in hand — instant. **Owned** sort needs one
 extra request the first time it's used (a single bulk lookup over
 already-in-memory inventory data, no external calls — see
 `GET /api/owned-summary` below), then it's cached for the rest of the
-session. **Price** sort is the one that costs something real: it needs a
-price for every item in the current filtered view, not just the visible
-page, so picking it fetches whatever isn't already cached for the whole
-filtered set (through the same concurrency-limited queue as everything
-else, with the `Loading prices…` indicator showing throughout) before
-sorting. Since prices are cached for a week regardless, this is a
-one-time cost per item that also speeds up later browsing — not a
-repeated one. Items with no known price always sort last, in either
-direction.
+session. **Price** sort still fetches a price for every item in the
+current filtered view before sorting (through the same concurrency-
+limited queue as everything else) rather than assuming the frontend
+already has them all — but since prices are now a pre-computed in-memory
+lookup with no live network call behind them (see Pricing below), even
+sorting the *entire* unfiltered catalog by price resolves in under a
+couple seconds, not the real, visible cost this used to be. Items with
+no known price always sort last, in either direction.
 
 An **Owned / Not Owned** filter (next to Sort) uses the same bulk lookup.
 "Owned" here means owning *any* variant of the item at all — any rank for
@@ -226,10 +235,10 @@ still applied.
 3. **Open the shop** — `http://127.0.0.1:7890/` in a browser while the
    game is running. Search a mod, hit Buy or Sell.
 
-The backend writes `server/price-cache.json` as it looks things up (see
-[Pricing](#pricing)) - gitignored, safe to delete any time to force a
-fresh look at the market for everything, though normally there's no
-reason to.
+The backend writes `server/price-history.json` after each weekly sweep
+(see [Pricing](#pricing)) - gitignored, safe to delete any time to force
+a fresh sweep of the whole catalog on next startup, though normally
+there's no reason to.
 
 Optional: `scripts/Market Sell Probe.pluto` is a one-shot diagnostic that
 tests the trickiest call (`/api/sell.php`) in isolation — grants a cheap

@@ -1,3 +1,4 @@
 node_modules/
 dist/
 price-cache.json
+price-history.json
