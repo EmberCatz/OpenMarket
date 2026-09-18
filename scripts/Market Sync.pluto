@@ -219,7 +219,7 @@ local function syncInventorySnapshot()
         return false
     end
 
-    pcall(function()
+    local postOk, postErr = pcall(function()
         return http.request(backendUrl("/internal/inventory-snapshot"), {
             method = "POST",
             headers = { ["Content-Type"] = "application/json" },
@@ -228,6 +228,10 @@ local function syncInventorySnapshot()
             dont_make_reusable = true,
         })
     end)
+    if not postOk then
+        print("Market Sync: failed to report inventory snapshot to backend - " .. tostring(postErr))
+        return false
+    end
     return true
 end
 
