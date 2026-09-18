@@ -26,6 +26,16 @@ export function validatePlutoScriptsDir(dir: string): Promise<boolean> {
     return invoke("validate_pluto_scripts_dir", { dir });
 }
 
+export interface NodeStatus {
+    found: boolean;
+    version: string | null;
+    sufficient: boolean;
+}
+
+export function checkNode(): Promise<NodeStatus> {
+    return invoke("check_node");
+}
+
 export function checkServerDeps(repoPath: string): Promise<boolean> {
     return invoke("check_server_deps", { repoPath });
 }

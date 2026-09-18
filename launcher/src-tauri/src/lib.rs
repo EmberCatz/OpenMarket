@@ -16,6 +16,43 @@ use tokio::sync::Mutex;
 // process, and Child::kill() below terminates the real thing.
 struct ServerProcess(Arc<Mutex<Option<Child>>>);
 
+#[derive(serde::Serialize)]
+struct NodeStatus {
+    found: bool,
+    version: Option<String>,
+    sufficient: bool,
+}
+
+// The launcher relies on a system Node install (>= 18, matching the
+// server's own requirement) for both `npm install` and running the
+// server itself - there's no bundled/private runtime (that's a real,
+// separate feature, not built yet - see DEVLOG.md). This just detects
+// what's there so the UI can point the user at nodejs.org instead of
+// failing confusingly partway through Install.
+#[tauri::command]
+async fn check_node() -> Result<NodeStatus, String> {
+    let mut cmd = Command::new("node");
+    cmd.arg("--version").stdout(Stdio::piped()).stderr(Stdio::piped());
+    #[cfg(target_os = "windows")]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let output = match cmd.output().await {
+        Ok(o) => o,
+        Err(_) => return Ok(NodeStatus { found: false, version: None, sufficient: false }),
+    };
+    if !output.status.success() {
+        return Ok(NodeStatus { found: false, version: None, sufficient: false });
+    }
+
+    let raw = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let major: Option<u32> = raw.trim_start_matches('v').split('.').next().and_then(|s| s.parse().ok());
+    let sufficient = major.map(|m| m >= 18).unwrap_or(false);
+    Ok(NodeStatus { found: true, version: Some(raw), sufficient })
+}
+
 #[tauri::command]
 async fn validate_repo_path(repo_path: String) -> Result<bool, String> {
     Ok(PathBuf::from(&repo_path).join("server").join("package.json").exists())
@@ -250,6 +287,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .manage(ServerProcess(Arc::new(Mutex::new(None))))
         .invoke_handler(tauri::generate_handler![
+            check_node,
             validate_repo_path,
             validate_pluto_scripts_dir,
             check_server_deps,

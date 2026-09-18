@@ -177,6 +177,15 @@ body {
     background: rgba(248, 81, 73, 0.15);
     border: 1px solid var(--err);
 }
+.banner button {
+    margin-top: 8px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+}
 
 .launch-btn {
     width: 100%;

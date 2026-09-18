@@ -60,3 +60,19 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+      # Windows-only: also ship a portable zip (just the raw exe) for
+      # users who'd rather download-and-run than go through the NSIS
+      # installer wizard. Can't self-update via the updater plugin
+      # (Tauri's Windows updater fundamentally works by re-running an
+      # installer, not by self-replacing a standalone exe - see
+      # DEVLOG.md) - the NSIS installer above is the one that does.
+      - name: Package portable Windows build
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          $zipName = "OpenMarket-Launcher-${{ github.ref_name }}-windows-portable.zip"
+          Compress-Archive -Path "launcher/src-tauri/target/release/launcher.exe" -DestinationPath $zipName
+          gh release upload ${{ github.ref_name }} $zipName --repo ${{ github.repository }} --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

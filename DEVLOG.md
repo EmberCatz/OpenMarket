@@ -258,6 +258,18 @@ yet, or the configured Pluto scripts folder is missing
 overwriting one that's already there, in case it's been customized
 in-game), then switches to "Launch App" once everything checks out.
 
+**Node.js is required and not bundled** — the launcher relies on a
+system Node 18+ install for both `npm install` and running the server
+itself; there's no private/portable Node runtime shipped alongside it
+(a real, separate feature, not built - would mean downloading and
+extracting Node's own portable archive per-platform, and threading a
+private-vs-system node path through both Install and Launch). If Node's
+missing or too old, a dedicated banner replaces the normal Install flow
+with an "Open nodejs.org" link — deliberately not attempted
+automatically, since installing Node mid-session wouldn't even be picked
+up (Windows doesn't propagate `PATH` changes to already-running
+processes), so the user has to restart the launcher afterward regardless.
+
 The originally-planned multi-step first-run onboarding wizard was
 deliberately dropped in favor of inline validation hints (✓/✗ next to
 the repo-path and Pluto-scripts-dir fields) — simpler, and covers the
@@ -275,10 +287,24 @@ on this project yet.
 ### Releases and auto-update
 
 Tagged releases (`v*`) build via GitHub Actions
-(`.github/workflows/release.yml`) for Windows (NSIS installer) and Linux
-(AppImage specifically, not `.deb`/`.rpm` — AppImage is what Tauri's
-updater can self-replace in place; a `.deb`/`.rpm` install would
-otherwise expect updates through the system package manager instead).
+(`.github/workflows/release.yml`) for **Windows (two artifacts: an NSIS
+installer AND a portable `.zip` of the raw exe) and Linux (AppImage)**.
+The portable Windows zip exists because not every user wants an
+installer-wizard/Program-Files experience — but it's a real tradeoff,
+not a free option: **the portable exe can't self-update.** Tauri's
+Windows updater plugin works by re-launching an installer, not by
+replacing a standalone binary in place (unlike Linux AppImage, which the
+updater CAN self-replace) — confirmed from the plugin's own API docs
+(`install()`'s doc comment: "Windows: This function exits the app after
+launching the updater installer successfully"). **Untested what actually happens if a portable-zip user clicks "Update &
+Restart"** — the updater always points at the same `latest.json` entry
+(the NSIS installer artifact) regardless of how the running copy was
+obtained, so the realistic guess is it downloads and silently runs that
+installer, converting a portable install into a real Program-Files one
+rather than failing outright — but that's a guess, not confirmed. The UI
+doesn't currently distinguish "am I the portable exe or the installed
+copy" at all. Worth an explicit test before calling this solid.
+
 Releases are created as **drafts** — nothing goes public or notifies
 watchers until manually published on GitHub. The app checks for updates
 once on startup (silently, no error shown if offline/unreachable) and

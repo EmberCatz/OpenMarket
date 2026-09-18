@@ -7,6 +7,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import "./App.css";
 import { DEFAULT_CONFIG, loadConfig, saveConfig, type LauncherConfig } from "./lib/config";
 import {
+    checkNode,
     checkServerDeps,
     fetchServerStatus,
     installPlutoScript,
@@ -17,6 +18,7 @@ import {
     stopServer,
     validatePlutoScriptsDir,
     validateRepoPath,
+    type NodeStatus,
     type ServerStatus
 } from "./lib/api";
 
@@ -50,6 +52,7 @@ export default function App() {
     const [plutoDirValid, setPlutoDirValid] = useState<boolean | null>(null);
     const [depsReady, setDepsReady] = useState<boolean | null>(null);
     const [installing, setInstalling] = useState(false);
+    const [nodeStatus, setNodeStatus] = useState<NodeStatus | null>(null);
     const [availableUpdate, setAvailableUpdate] = useState<Update | null>(null);
     const [updating, setUpdating] = useState(false);
 
@@ -63,6 +66,18 @@ export default function App() {
             setConfig(c);
             setConfigLoaded(true);
         });
+    }, []);
+
+    // --- Check for a usable system Node install once, on mount. Doesn't
+    // depend on repoPath - Node either exists on this machine or it
+    // doesn't, and PATH changes from installing it mid-session won't be
+    // picked up without restarting the launcher anyway (Windows doesn't
+    // propagate env var changes to already-running processes), so
+    // there's no point re-checking on a timer. ---
+    useEffect(() => {
+        checkNode()
+            .then(setNodeStatus)
+            .catch(() => setNodeStatus({ found: false, version: null, sufficient: false }));
     }, []);
 
     // --- Check for an app update once on startup, in the background.
@@ -159,8 +174,14 @@ export default function App() {
     // script, never depends on it to run the server) - only a
     // *configured-but-invalid* one counts, since that's the user having
     // pointed at the wrong folder.
+    const nodeChecking = nodeStatus === null;
+    const nodeMissing = nodeStatus !== null && !nodeStatus.sufficient;
     const needsInstall =
-        !config.repoPath || repoPathValid === false || depsReady === false || (config.plutoScriptsDir !== "" && plutoDirValid === false);
+        nodeMissing ||
+        !config.repoPath ||
+        repoPathValid === false ||
+        depsReady === false ||
+        (config.plutoScriptsDir !== "" && plutoDirValid === false);
     const depsChecking = repoPathValid === true && depsReady === null;
 
     // --- Auto-launch on startup, once, if configured AND already fully
@@ -170,12 +191,12 @@ export default function App() {
     useEffect(() => {
         if (!configLoaded || autoLaunchTried.current) return;
         if (!config.autoLaunch || !config.repoPath) return;
-        if (repoPathValid === null || depsChecking) return; // still checking, wait for a real answer
+        if (nodeChecking || repoPathValid === null || depsChecking) return; // still checking, wait for a real answer
         if (needsInstall) return; // don't auto-launch a broken/incomplete setup
         autoLaunchTried.current = true;
         handleLaunch();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [configLoaded, repoPathValid, depsReady, plutoDirValid]);
+    }, [configLoaded, nodeStatus, repoPathValid, depsReady, plutoDirValid]);
 
     // --- Validate configured paths whenever they change ---
     useEffect(() => {
@@ -227,6 +248,13 @@ export default function App() {
 
     async function handleInstall() {
         setError(null);
+        if (nodeMissing) {
+            // Nothing to do here - npm install/the server itself both
+            // need a real Node install first, and there's no bundled
+            // runtime (see the dedicated banner's "Open nodejs.org"
+            // button instead of running anything).
+            return;
+        }
         if (!config.repoPath) {
             setError("Set the OpenMarket repo path in Settings first.");
             setSettingsOpen(true);
@@ -365,7 +393,21 @@ export default function App() {
                 {tab === "dashboard" && (
                     <div className="dashboard">
                         {error && <div className="banner error">{error}</div>}
-                        {!config.repoPath && (
+                        {nodeMissing && (
+                            <div className="banner error">
+                                <div>
+                                    {nodeStatus?.found
+                                        ? `Node.js ${nodeStatus.version} found, but 18+ is required.`
+                                        : "Node.js 18+ wasn't found on this system."}{" "}
+                                    Install it, then restart this app - installing it mid-session isn't picked up
+                                    automatically.
+                                </div>
+                                <button onClick={() => openUrl("https://nodejs.org/").catch(e => setError(String(e)))}>
+                                    Open nodejs.org
+                                </button>
+                            </div>
+                        )}
+                        {!nodeMissing && !config.repoPath && (
                             <div className="banner warn">
                                 No OpenMarket repo path configured yet - open Settings to point the launcher at it.
                             </div>
@@ -374,10 +416,14 @@ export default function App() {
                         <button
                             className="launch-btn"
                             onClick={needsInstall ? handleInstall : handleLaunch}
-                            disabled={busy || processAlive || installing || depsChecking}
+                            disabled={busy || processAlive || installing || depsChecking || nodeChecking || nodeMissing}
                         >
                             {processAlive
                                 ? "Running"
+                                : nodeChecking
+                                ? "Checking..."
+                                : nodeMissing
+                                ? "⬇ Install"
                                 : installing
                                 ? "Installing..."
                                 : depsChecking
@@ -386,7 +432,7 @@ export default function App() {
                                 ? "⬇ Install"
                                 : "▶ Launch App"}
                         </button>
-                        {needsInstall && !installing && config.repoPath && repoPathValid !== false && (
+                        {needsInstall && !nodeMissing && !installing && config.repoPath && repoPathValid !== false && (
                             <div className="install-hint">
                                 Will set up:{" "}
                                 {[
