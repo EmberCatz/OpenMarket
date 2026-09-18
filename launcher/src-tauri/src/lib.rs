@@ -80,6 +80,49 @@ async fn check_server_deps(repo_path: String) -> Result<bool, String> {
     Ok(tsx_entry_path(&repo_path).exists())
 }
 
+// `Command::new("npm")` fails outright on Windows with "program not
+// found" - confirmed live (2026-09-19, a real user hit this, not a
+// theoretical concern), not just a style preference like the tsx case
+// below. npm ships as npm.cmd there, a batch file, and Rust's Command
+// can't execute a batch file directly the way it can a real .exe (the
+// same underlying class of problem tsx_entry_path/start_server already
+// route around - this one was just missed originally, since testing
+// this session's install flow went through a Bash-invoked `npm install`
+// as a proxy, which uses a completely different execution path than
+// Rust's Command and never actually exercised this).
+//
+// Fix: ask the system node for its own process.execPath (node.exe is a
+// real executable, this part works fine), then invoke npm's own JS CLI
+// entry directly through it - confirmed to exist at
+// <node_dir>/node_modules/npm/bin/npm-cli.js on Windows and
+// <node_dir>/../lib/node_modules/npm/bin/npm-cli.js on Linux/Mac (node's
+// binary sits in bin/ there, npm-cli.js does not sit next to it).
+async fn resolve_npm_cli_js() -> Result<(PathBuf, PathBuf), String> {
+    let mut cmd = Command::new("node");
+    cmd.args(["-e", "console.log(process.execPath)"]).stdout(Stdio::piped()).stderr(Stdio::piped());
+    #[cfg(target_os = "windows")]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    let output = cmd.output().await.map_err(|e| format!("Failed to run node: {e}"))?;
+    if !output.status.success() {
+        return Err("Failed to determine the Node.js install location.".into());
+    }
+    let node_exe = PathBuf::from(String::from_utf8_lossy(&output.stdout).trim());
+    let node_dir = node_exe.parent().ok_or_else(|| "Could not determine Node.js's install directory.".to_string())?;
+
+    let windows_style = node_dir.join("node_modules").join("npm").join("bin").join("npm-cli.js");
+    if windows_style.exists() {
+        return Ok((node_exe.clone(), windows_style));
+    }
+    let unix_style = node_dir.join("..").join("lib").join("node_modules").join("npm").join("bin").join("npm-cli.js");
+    if unix_style.exists() {
+        return Ok((node_exe.clone(), unix_style));
+    }
+    Err(format!("Could not find npm's CLI entry point relative to {}", node_exe.display()))
+}
+
 // Runs `npm install` in server/ and streams its output to the same
 // "server-log" event the terminal panel already listens to (prefixed
 // "[install]" so it's distinguishable from runtime server logs). Awaited
@@ -93,10 +136,13 @@ async fn install_server_deps(app: AppHandle, repo_path: String) -> Result<(), St
         return Err(format!("No server/package.json found under {}", repo_path));
     }
 
+    let (node_exe, npm_cli_js) = resolve_npm_cli_js().await?;
+
     let _ = app.emit("server-log", "[install] Running npm install in server/ ...".to_string());
 
-    let mut cmd = Command::new("npm");
-    cmd.arg("install")
+    let mut cmd = Command::new(&node_exe);
+    cmd.arg(&npm_cli_js)
+        .arg("install")
         .current_dir(&server_dir)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());

@@ -251,6 +251,34 @@ Stop can orphan the real server process holding the port. Invoking tsx's
 own JS entry point means there's exactly one process, and closing the
 launcher (or hitting Stop) actually terminates it.
 
+**Real bug, found via a v1.0.0 user report (2026-09-19): `Command::new("npm")`
+fails outright on Windows with `program not found`, not just an
+orphan-process risk like the case above.** `install_server_deps`
+(the `npm install` step) had been spawning bare `npm` directly — Rust's
+`Command` can't execute a `.cmd` batch file the way it executes a real
+`.exe`, confirmed by reproducing the exact error in an isolated
+`tokio::process::Command::new("npm")` test on this machine. This is a
+different failure mode than the orphan-process reasoning above (which is
+about *what happens after* a successful spawn) — this one never spawns
+at all. Missed originally because this session's own testing of the
+install flow went through a **Bash**-invoked `npm install` as a proxy
+for the Rust command, and Bash resolves/executes `.cmd` files through a
+completely different mechanism than Rust's `Command` does — the proxy
+test passed while the real code path was actually broken the whole time.
+**Lesson: a shell-invoked equivalent is not proof a Rust `Command::new()`
+call will do the same thing on Windows — the batch-file-as-program case
+specifically needs testing via an actual Rust process spawn, not a
+shell stand-in.**
+
+Fixed by asking the system node for its own `process.execPath` (a real
+`.exe`, spawns fine) and invoking npm's own CLI entry point directly
+through it (`<node_dir>/node_modules/npm/bin/npm-cli.js` on Windows,
+`<node_dir>/../lib/node_modules/npm/bin/npm-cli.js` on Linux/Mac) —
+same "invoke the JS entry directly, skip the wrapper" pattern already
+used for tsx, applied consistently rather than special-cased. Verified
+with a real `tokio::process::Command` spawn test reproducing both the
+original failure and the fix working, not just a compile check.
+
 Has an **Install** step: if `server/`'s dependencies aren't installed
 yet, or the configured Pluto scripts folder is missing
 `Market Sync.pluto`, the primary button reads "Install" instead of
