@@ -231,6 +231,15 @@ main {
     color: var(--muted);
 }
 
+/* Shared by .mod-price/.owned-count/.owned-rank-price - a "?" means the
+   fetch itself failed (not a real "no price"/"no data" answer), so it's
+   clickable to retry instead of being a dead end until the next
+   full re-render. */
+.retryable {
+    cursor: pointer;
+    text-decoration: underline dotted;
+}
+
 .owned-count.none {
     color: var(--sell);
 }

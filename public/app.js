@@ -233,15 +233,27 @@ function attachOwnedRanksDisplay(row, item) {
             const price = document.createElement("span");
             price.className = "owned-rank-price";
             price.textContent = "…";
-            scheduleFetch(() =>
-                fetchJsonWithRetry(`/api/price/${encodeURIComponent(item.slug)}?subtype=regular&rank=${rank}`)
-                    .then(info => {
-                        price.textContent = info.platinum != null ? `${info.platinum}p` : "no price";
-                    })
-                    .catch(() => {
-                        price.textContent = "?";
-                    })
-            );
+            function fetchRankPrice() {
+                price.textContent = "…";
+                price.classList.remove("retryable");
+                scheduleFetch(() =>
+                    fetchJsonWithRetry(`/api/price/${encodeURIComponent(item.slug)}?subtype=regular&rank=${rank}`)
+                        .then(info => {
+                            price.textContent = info.platinum != null ? `${info.platinum}p` : "no price";
+                        })
+                        .catch(() => {
+                            price.textContent = "?";
+                            price.classList.add("retryable");
+                        })
+                );
+            }
+            // A "?" means the fetch itself failed (not a real "no price"
+            // answer from the server) - click it to try again instead of
+            // it being a dead end until the next full re-render.
+            price.addEventListener("click", () => {
+                if (price.classList.contains("retryable")) fetchRankPrice();
+            });
+            fetchRankPrice();
 
             const buyBtn = document.createElement("button");
             buyBtn.className = "btn btn-buy";
@@ -461,6 +473,7 @@ function renderRow(item) {
 
     function fetchPrice() {
         price.textContent = "…";
+        price.classList.remove("retryable");
         scheduleFetch(() =>
             fetchJsonWithRetry(
                 `/api/price/${encodeURIComponent(item.slug)}?subtype=${encodeURIComponent(currentSubtype())}&rank=${selectedRank}`
@@ -470,9 +483,17 @@ function renderRow(item) {
                 })
                 .catch(() => {
                     price.textContent = "?";
+                    price.classList.add("retryable");
                 })
         );
     }
+
+    // A "?" means the fetch itself failed (not a real "no price" answer
+    // from the server) - click it to try again instead of it being a
+    // dead end until the next full re-render.
+    price.addEventListener("click", () => {
+        if (price.classList.contains("retryable")) fetchPrice();
+    });
 
     // Owned count, reported by Market Sync.pluto from /api/inventory.php
     // (see itemsCache.ts/routes.ts's /api/owned) - a UX aid only, NOT a
@@ -493,7 +514,7 @@ function renderRow(item) {
         if (item.type === "prime_set") return;
         ownedEl.hidden = false;
         ownedEl.textContent = "Owned: …";
-        ownedEl.classList.remove("none");
+        ownedEl.classList.remove("none", "retryable");
         scheduleFetch(() =>
             fetchJsonWithRetry(`/api/owned/${encodeURIComponent(item.slug)}?refinement=${encodeURIComponent(currentSubtype())}`)
                 .then(info => {
@@ -501,14 +522,23 @@ function renderRow(item) {
                     ownedCount = info.known ? info.owned : null;
                     ownedEl.textContent = info.known ? `Owned: ${info.owned}` : "Owned: ?";
                     ownedEl.classList.toggle("none", info.known && info.owned === 0);
+                    ownedEl.classList.toggle("retryable", !info.known);
                     updateSellAvailability();
                 })
                 .catch(() => {
                     ownedEl.textContent = "Owned: ?";
                     ownedEl.classList.remove("none");
+                    ownedEl.classList.add("retryable");
                 })
         );
     }
+
+    // "Owned: ?" means either the fetch failed or no inventory sync has
+    // landed yet - click it to try again in either case rather than
+    // waiting for the next full re-render.
+    ownedEl.addEventListener("click", () => {
+        if (ownedEl.classList.contains("retryable")) fetchOwned();
+    });
 
     // Applied optimistically right after a buy/sell order completes, so
     // the count/Sell-availability update instantly instead of waiting up
