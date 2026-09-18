@@ -137,7 +137,9 @@ clicked; the script polls for it and carries it out. This all runs on
 
 For the full architecture rationale, every confirmed API mechanism, and
 a detailed history of what's been built and fixed, see
-[DEVLOG.md](DEVLOG.md).
+[DEVLOG.md](DEVLOG.md). For a quick-scan list of specific bugs that have
+already been found and fixed (or are known and still open), see
+[BUGS.md](BUGS.md).
 
 ## Known limitations
 

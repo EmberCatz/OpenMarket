@@ -1,0 +1,32 @@
+# Bug Tracker
+
+Quick-reference log of real bugs found in this project — check here
+first before re-investigating something that might already be known.
+Each entry links to [DEVLOG.md](DEVLOG.md) for the full root-cause
+writeup and evidence; this file is deliberately terse, just enough to
+recognize "have we seen this symptom before."
+
+## Fixed
+
+| Date | Component | Symptom | Fix | Verified |
+|---|---|---|---|---|
+| 2026-09-19 | Launcher (Windows) | Install button fails: `Failed to run npm install: program not found` | `Command::new("npm")` can't spawn a `.cmd` batch file on Windows; now invokes npm's own JS CLI entry directly through `node.exe`, same pattern as the `tsx` server spawn. [`885b724`](https://github.com/EmberCatz/OpenMarket/commit/885b724) — shipped in **v1.0.1**. | Real isolated `Command::new("npm")` spawn test reproducing the exact failure, then the fix, on a real Windows machine — not just a compile check. |
+| 2026-09-19 | Repo structure / scripts | A diagnostic probe script (e.g. `Market Inventory Flake Probe.pluto`) shows up and gets run instead of/alongside `Market Sync.pluto` | User had copied the whole `scripts/` folder instead of just `Market Sync.pluto`, putting every dev-only probe on equal footing in OpenWF's script-runner UI. Probes moved to `scripts/probes/` so a whole-folder copy no longer sweeps them in. [`45b142f`](https://github.com/EmberCatz/OpenMarket/commit/45b142f) — repo-only change, **no launcher release needed**. | Traced directly from a real user's script_log output showing the probe's own diagnostic prints. |
+| 2026-09-18 | Pricing | A relic's exact refinement (e.g. Radiant) shows "no price" instead of falling back like Mods/Arcanes do | Relics had no ladder-interpolation fallback at all, unlike mod/arcane rank. Both now share one `interpolateLadder()` function. | Verified via curl after a clean restart across multiple relics. |
+| 2026-09-18 | Classification | Peculiar mods (Growth/Bloom/Audience/End) appear under the Arcanes tab, not Mods | They carry both `"mod"` and `"arcane_enhancement"` tags on warframe.market (the only items with that overlap); classification checked `arcane_enhancement` first. Reordered so `mod` wins the ambiguous case. | Confirmed by downloading the full catalog and checking the tag overlap directly, not guessed. |
+| 2026-09-17 | Classification / safety | "Veiled Riven Mod" placeholders appear in the shop and are sellable | Riven filter checked for the exact tag `"riven"` instead of any tag *containing* `"riven"` — real veiled-riven placeholders are tagged `"riven_mod"`/`"veiled_riven"`. Selling one would have decremented the same stack a player's real earned Rivens live in. Fixed to a substring check. | Verified via curl: catalog count dropped by exactly 7 (one per weapon category) after the fix, nothing else changed. |
+| (early dev, pre-release) | Backend / SpaceNinjaServer integration | `/api/sell.php` returns an opaque empty `HTTP 500` | That endpoint expects a raw string body (`Content-Type: text/plain`) and does `JSON.parse(String(req.body))` itself — sending `application/json` (the pattern used everywhere else) lets Express pre-parse the body first, breaking the call. Content-Type fixed to `text/plain` for this one call. | Confirmed by re-reading SpaceNinjaServer's own WebUI source, which uses the same header for the same endpoint. |
+
+## Known / open — not fixed yet
+
+| Found | Component | Symptom | Status |
+|---|---|---|---|
+| 2026-09-19 | Frontend order flow | Buy/Sell disables both buttons on click, but there's **no timeout** — if `Market Sync.pluto` never picks up the order (usually because it's not actually connected), the buttons stay disabled forever with zero error shown. A page reload/re-render resets the disabled state, so repeated clicks can queue multiple real duplicate orders for the same item. Confirmed via two independent real user reports (4x and 2x duplicate orders), both traced back to the script not being connected — not a queueing bug itself, but the missing timeout is what let it go unnoticed. | **Not fixed** — proposed: a timeout that surfaces a real error after ~30s, plus a guard against queueing a second order for an item that already has one pending. |
+| 2026-09-19 | Pluto script / launcher | `Market Sync.pluto` has the backend port (`7890`) hardcoded. If the launcher's configured **Server port** is ever changed away from `7890`, the script keeps polling the old port forever — no error on either side, just permanently stuck on "Waiting." | **Not fixed** — not urgent (requires the user to have changed the default), but a real footgun with no diagnostic surfaced anywhere. Documented in the Discord thread checklist as a manual thing to check. |
+
+## Known external quirks — not bugs, don't re-investigate
+
+| Component | What you'll see | Why it's not a bug here |
+|---|---|---|
+| SpaceNinjaServer's `/api/inventory.php` | Pluto script_log occasionally shows `Market Sync: inventory fetch failed (status=Connection Closed Prematurely), retrying in 5s` | Measured, bounded ~25-30% per-call failure rate on this specific SpaceNinjaServer endpoint, unrelated to OpenMarket. Self-heals via a 5s retry loop. See [DEVLOG.md](DEVLOG.md#confirmed-http-mechanics). |
+| Server startup / first run | `Price history: no local cache found - seeded from the bundled snapshot...` / `...starting a refresh sweep over 2558 items...` | Normal first-run behavior, not an error — prices work immediately from the bundled snapshot while a real sweep runs in the background. |

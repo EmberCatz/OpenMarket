@@ -4,7 +4,9 @@ The detailed version of [README.md](README.md): architecture rationale,
 every confirmed SpaceNinjaServer/warframe.market API mechanism (with
 evidence, not guesses), and a dated history of what's been built, broken,
 and fixed. Read this if you're extending the code, debugging something,
-or just want to know *why* it works the way it does.
+or just want to know *why* it works the way it does. For a fast-scan
+table of specific bugs (fixed and still-open) instead of narrative
+prose, see [BUGS.md](BUGS.md).
 
 ## Scope, in detail
 
