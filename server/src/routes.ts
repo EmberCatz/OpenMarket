@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getItems, findItemByGameRef, findItemBySlug, resolveSellGameRef, RELIC_REFINEMENT_SUFFIXES } from "./itemsCache.js";
-import { getPrice } from "./priceCache.js";
+import { getPrice, getPriceCacheStatus } from "./priceCache.js";
 import { enqueueOrder, popPendingOrder, reportOrderResult, getOrder } from "./orderQueue.js";
 import {
     setInventorySnapshot,
@@ -15,6 +15,36 @@ import {
 
 export const apiRouter = Router();
 export const internalRouter = Router();
+
+const SERVER_STARTED_AT = Date.now();
+
+// Set whenever Market Sync.pluto polls /internal/pending-order (see
+// below) - the ONLY signal this server has that the script is alive,
+// since the script always initiates contact, never the other way
+// around. POLL_MS in Market Sync.pluto is 2000ms (confirmed by reading
+// the dev copy in My Scripts/) - PLUTO_STALE_MS is 4x that to absorb
+// normal jitter/game hitches without flapping "Connected"/"Disconnected"
+// on every missed beat.
+let lastPlutoPollAt: number | null = null;
+const PLUTO_STALE_MS = 8000;
+
+// --- Launcher-facing (public API - also usable directly via curl) ---
+
+// Bump schemaVersion on any breaking shape change so a consumer (the
+// OpenMarket Launcher, or anything else polling this) can detect a
+// version it doesn't understand and show "unknown" rather than
+// misreading a renamed/restructured field as a false status.
+apiRouter.get("/status", (_req, res) => {
+    res.json({
+        schemaVersion: 1,
+        server: { ok: true, uptimeSeconds: Math.floor((Date.now() - SERVER_STARTED_AT) / 1000) },
+        database: getPriceCacheStatus(),
+        pluto: {
+            lastPollAt: lastPlutoPollAt,
+            connected: lastPlutoPollAt !== null && Date.now() - lastPlutoPollAt < PLUTO_STALE_MS
+        }
+    });
+});
 
 // --- Frontend-facing ---
 
@@ -189,6 +219,7 @@ apiRouter.get("/order/:id", (req, res) => {
 // --- Market Sync.pluto-facing only ---
 
 internalRouter.get("/pending-order", (_req, res) => {
+    lastPlutoPollAt = Date.now();
     const order = popPendingOrder();
     if (!order) {
         res.status(204).end();

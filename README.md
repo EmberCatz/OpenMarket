@@ -59,6 +59,19 @@ Both are meant for the script only, not the browser — there's no auth on
 them because everything here is meant to run on localhost for one account.
 **Don't expose this backend beyond localhost.**
 
+**`GET /api/status`** (added 2026-09-18) is public, documented API — safe
+to `curl` directly, not just for the launcher below. It reports server
+uptime, the price database's state (`empty`/`seeded`/`live`, mirroring
+whether a real 90-day sweep has completed this run vs. still running on
+the bundled seed), and whether `Market Sync.pluto` has polled
+`/internal/pending-order` recently (`pluto.connected` — a last-poll
+timestamp under an 8s staleness window, 4x the script's own 2s poll
+interval, to absorb normal jitter without flapping). It's the only signal
+this server has of the script's presence, since the script always
+initiates contact. Carries a `schemaVersion` field specifically so a
+consumer can detect a shape it doesn't understand and show "unknown"
+rather than misreading a renamed/restructured field as a false status.
+
 ## Pricing
 
 Prices are **90-day historical medians**, not live order-book snapshots.
@@ -242,7 +255,8 @@ still applied.
    npm start
    ```
    Listens on `http://127.0.0.1:7890/` by default (override with the
-   `MARKET_EMULATOR_PORT` env var).
+   `MARKET_EMULATOR_PORT` env var). Or use the [desktop launcher](#desktop-launcher)
+   instead of a terminal for this step.
 
 2. **Script** — copy `scripts/Market Sync.pluto` into your OpenWF
    `Scripts/` folder and start it in-game (or autostart it). It polls the
@@ -281,6 +295,40 @@ for what a real run looked like.
 specific ranked copy by its real database id — grants a rank-3 Serration,
 pauses so you can look, finds its exact id, pauses again, sells it, then
 confirms the count dropped by exactly one — confirmed working.
+
+## Desktop launcher
+
+`launcher/` is a Tauri v2 + React/TypeScript desktop app that supervises
+`server/` instead of running `npm start` in a terminal by hand: start/
+stop/restart, a live status dashboard (polls `GET /api/status` above), a
+collapsible terminal panel streaming the server's real stdout/stderr, and
+a settings drawer for the repo path/port/Pluto scripts directory.
+
+Runs `node <server>/node_modules/tsx/dist/cli.mjs src/index.ts` directly
+rather than `npm start` — on Windows, `npm` is a `.cmd` wrapper that
+spawns `node.exe` as a further child process, so killing the wrapper on
+Stop can orphan the real server process holding the port. Invoking tsx's
+own JS entry point means there's exactly one process, and closing the
+launcher (or hitting Stop) actually terminates it.
+
+No installer is published yet — build from source:
+
+```
+cd launcher
+npm install
+npm run tauri dev      # dev mode, opens a window immediately
+# or:
+npm run tauri build    # produces a release installer under src-tauri/target/release/bundle/
+```
+
+Requires Rust (`rustup`) in addition to Node, only for building — an end
+user running a published installer wouldn't need Rust themselves, but
+none has been built/published yet as of 2026-09-18. Backend supervision,
+status polling, and the settings drawer are confirmed working in dev
+mode; the originally-planned multi-step first-run onboarding wizard was
+deliberately dropped in favor of inline validation hints (✓/✗ next to the
+repo-path and Pluto-scripts-dir fields) — simpler, and covers the same
+"did I point this at the right folder" problem without a dedicated flow.
 
 ## Confirmed HTTP mechanics
 
@@ -396,6 +444,16 @@ Read directly from SpaceNinjaServer's source, not guessed:
 
 ## Known limitations
 
+- **The launcher's Pluto-connected status is a heuristic, not a real
+  connection check.** `Market Sync.pluto` always initiates contact; the
+  server has no way to reach out to it. "Connected" just means a poll was
+  seen recently (within 8s) — a script that's running but stuck/erroring
+  after its initial poll could still show "Connected" for up to 8s after
+  it actually stopped doing anything useful. Check the terminal panel /
+  the Bootstrapper's `script_log` for actual script health, not just this
+  chip.
+- **No launcher installer published yet** — has to be built from source
+  (`npm run tauri build`) as of 2026-09-18.
 - **"Peculiar" mods were miscategorized as Arcanes until fixed 2026-09-18.**
   The 4 Peculiar mods (Growth/Bloom/Audience/End) carry BOTH `"mod"` and
   `"arcane_enhancement"` tags simultaneously on warframe.market — the only

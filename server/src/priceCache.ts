@@ -251,6 +251,27 @@ function interpolateLadder(perVariant: Record<string, number>, ladderKeys: strin
     return (lower ?? upper)!.platinum;
 }
 
+export interface PriceCacheStatus {
+    // "empty": nothing loaded at all (shouldn't happen post-seed, but a
+    // corrupt/missing seed file could produce it). "seeded": bundled
+    // fallback loaded, no real sweep has completed yet this run. "live":
+    // at least one real sweep against warframe.market has completed.
+    state: "empty" | "seeded" | "live";
+    lastRefreshCompletedAt: number | null;
+    refreshInProgress: boolean;
+    itemCount: number; // slugs with at least one priced variant
+}
+
+// Synchronous, zero network/disk calls - for the launcher's /api/status
+// polling (see routes.ts). Deliberately does NOT call getItems() (which
+// can itself trigger a network fetch) - reports only what this module
+// already holds in memory.
+export function getPriceCacheStatus(): PriceCacheStatus {
+    const itemCount = Object.keys(priceHistory).length;
+    const state = itemCount === 0 ? "empty" : lastRefreshCompletedAt === null ? "seeded" : "live";
+    return { state, lastRefreshCompletedAt, refreshInProgress, itemCount };
+}
+
 // Synchronous - no network call happens here at all, only a plain object
 // lookup against whatever the last completed sweep found.
 export function getPrice(slug: string, subtype: string = "regular", rank: number = 0, maxRank: number | null = null): PriceInfo {

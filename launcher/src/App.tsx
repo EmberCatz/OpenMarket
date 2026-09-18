@@ -1,0 +1,425 @@
+import { useEffect, useRef, useState } from "react";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { openUrl, openPath } from "@tauri-apps/plugin-opener";
+import { listen } from "@tauri-apps/api/event";
+import "./App.css";
+import { DEFAULT_CONFIG, loadConfig, saveConfig, type LauncherConfig } from "./lib/config";
+import {
+    fetchServerStatus,
+    isServerRunning,
+    KNOWN_STATUS_SCHEMA_VERSION,
+    startServer,
+    stopServer,
+    validatePlutoScriptsDir,
+    validateRepoPath,
+    type ServerStatus
+} from "./lib/api";
+
+const STATUS_POLL_MS = 2000;
+const MAX_LOG_LINES = 5000;
+
+type Chip = { label: string; tone: "ok" | "pending" | "off" | "unknown" };
+
+function ChipView({ label, tone }: Chip) {
+    return (
+        <span className={`chip chip-${tone}`}>
+            <span className="chip-dot" />
+            {label}
+        </span>
+    );
+}
+
+export default function App() {
+    const [config, setConfig] = useState<LauncherConfig>(DEFAULT_CONFIG);
+    const [configLoaded, setConfigLoaded] = useState(false);
+    const [status, setStatus] = useState<ServerStatus | null>(null);
+    const [processAlive, setProcessAlive] = useState(false);
+    const [statusUnknownSchema, setStatusUnknownSchema] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [settingsOpen, setSettingsOpen] = useState(false);
+    const [tab, setTab] = useState<"dashboard" | "help">("dashboard");
+    const [terminalOpen, setTerminalOpen] = useState(true);
+    const [logLines, setLogLines] = useState<string[]>([]);
+    const [repoPathValid, setRepoPathValid] = useState<boolean | null>(null);
+    const [plutoDirValid, setPlutoDirValid] = useState<boolean | null>(null);
+
+    const autoOpenPending = useRef(false);
+    const logEndRef = useRef<HTMLDivElement>(null);
+    const autoLaunchTried = useRef(false);
+
+    // --- Load config once, on mount ---
+    useEffect(() => {
+        loadConfig().then(c => {
+            setConfig(c);
+            setConfigLoaded(true);
+        });
+    }, []);
+
+    // --- Live server log stream ---
+    useEffect(() => {
+        const unlisten = listen<string>("server-log", event => {
+            setLogLines(prev => {
+                const next = [...prev, event.payload];
+                return next.length > MAX_LOG_LINES ? next.slice(next.length - MAX_LOG_LINES) : next;
+            });
+        });
+        return () => {
+            unlisten.then(f => f());
+        };
+    }, []);
+
+    useEffect(() => {
+        logEndRef.current?.scrollIntoView({ block: "end" });
+    }, [logLines]);
+
+    // --- Status + process-alive polling ---
+    useEffect(() => {
+        if (!configLoaded) return;
+        let cancelled = false;
+
+        async function poll() {
+            try {
+                const alive = await isServerRunning();
+                if (cancelled) return;
+                setProcessAlive(alive);
+            } catch {
+                /* ignore - state remains as last known */
+            }
+            try {
+                const s = await fetchServerStatus(config.port);
+                if (cancelled) return;
+                if (s.schemaVersion !== KNOWN_STATUS_SCHEMA_VERSION) {
+                    setStatusUnknownSchema(true);
+                    setStatus(null);
+                    return;
+                }
+                setStatusUnknownSchema(false);
+                setStatus(s);
+                if (autoOpenPending.current && s.server.ok) {
+                    autoOpenPending.current = false;
+                    openUrl(`http://127.0.0.1:${config.port}/`).catch(() => {});
+                }
+            } catch {
+                if (!cancelled) setStatus(null);
+            }
+        }
+
+        poll();
+        const id = setInterval(poll, STATUS_POLL_MS);
+        return () => {
+            cancelled = true;
+            clearInterval(id);
+        };
+    }, [configLoaded, config.port]);
+
+    // --- Auto-launch on startup, once, if configured ---
+    useEffect(() => {
+        if (!configLoaded || autoLaunchTried.current) return;
+        autoLaunchTried.current = true;
+        if (config.autoLaunch && config.repoPath) {
+            handleLaunch();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [configLoaded]);
+
+    // --- Validate configured paths whenever they change ---
+    useEffect(() => {
+        if (!config.repoPath) {
+            setRepoPathValid(null);
+            return;
+        }
+        validateRepoPath(config.repoPath).then(setRepoPathValid).catch(() => setRepoPathValid(false));
+    }, [config.repoPath]);
+
+    useEffect(() => {
+        if (!config.plutoScriptsDir) {
+            setPlutoDirValid(null);
+            return;
+        }
+        validatePlutoScriptsDir(config.plutoScriptsDir).then(setPlutoDirValid).catch(() => setPlutoDirValid(false));
+    }, [config.plutoScriptsDir]);
+
+    async function handleLaunch() {
+        setError(null);
+        if (!config.repoPath) {
+            setError("Set the OpenMarket repo path in Settings first.");
+            setSettingsOpen(true);
+            return;
+        }
+        setBusy(true);
+        try {
+            autoOpenPending.current = true;
+            await startServer(config.repoPath, config.port);
+        } catch (e) {
+            autoOpenPending.current = false;
+            setError(String(e));
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    async function handleStop() {
+        setBusy(true);
+        setError(null);
+        try {
+            await stopServer();
+            setStatus(null);
+        } catch (e) {
+            setError(String(e));
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    async function handleRestart() {
+        setBusy(true);
+        setError(null);
+        try {
+            if (processAlive) await stopServer();
+            await new Promise(r => setTimeout(r, 400));
+            autoOpenPending.current = false;
+            await startServer(config.repoPath, config.port);
+        } catch (e) {
+            setError(String(e));
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    async function browseFolder(field: "repoPath" | "plutoScriptsDir") {
+        const picked = await openDialog({ directory: true, multiple: false });
+        if (typeof picked === "string") {
+            setConfig(c => ({ ...c, [field]: picked }));
+        }
+    }
+
+    async function persistConfig(next: LauncherConfig) {
+        setConfig(next);
+        await saveConfig(next);
+    }
+
+    const serverChip: Chip = status?.server.ok
+        ? { label: "Running", tone: "ok" }
+        : processAlive
+        ? { label: "Starting...", tone: "pending" }
+        : { label: "Stopped", tone: "off" };
+
+    const dbChip: Chip = statusUnknownSchema
+        ? { label: "Unknown (launcher out of date)", tone: "unknown" }
+        : !status
+        ? { label: "Unknown", tone: "unknown" }
+        : status.database.state === "live"
+        ? { label: "Connected", tone: "ok" }
+        : status.database.state === "seeded"
+        ? { label: "Pending (fallback data)", tone: "pending" }
+        : { label: "Disconnected", tone: "off" };
+
+    const plutoChip: Chip = !status
+        ? { label: "Unknown", tone: "unknown" }
+        : status.pluto.connected
+        ? { label: "Connected", tone: "ok" }
+        : { label: "Waiting", tone: "pending" };
+
+    return (
+        <div className="app">
+            <header className="topbar">
+                <span className="brand">OpenMarket Launcher</span>
+                <button className="icon-btn" onClick={() => setSettingsOpen(true)} title="Settings">
+                    ⚙
+                </button>
+            </header>
+
+            <div className="status-row">
+                <span className="status-item">
+                    <span className="status-label">Server</span>
+                    <ChipView {...serverChip} />
+                </span>
+                <span className="status-item">
+                    <span className="status-label">Database</span>
+                    <ChipView {...dbChip} />
+                </span>
+                <span className="status-item">
+                    <span className="status-label">Pluto Client</span>
+                    <ChipView {...plutoChip} />
+                </span>
+            </div>
+
+            <nav className="tabs">
+                <button className={tab === "dashboard" ? "tab active" : "tab"} onClick={() => setTab("dashboard")}>
+                    Dashboard
+                </button>
+                <button className={tab === "help" ? "tab active" : "tab"} onClick={() => setTab("help")}>
+                    Help & Guides
+                </button>
+            </nav>
+
+            <main className="content">
+                {tab === "dashboard" && (
+                    <div className="dashboard">
+                        {error && <div className="banner error">{error}</div>}
+                        {!config.repoPath && (
+                            <div className="banner warn">
+                                No OpenMarket repo path configured yet - open Settings to point the launcher at it.
+                            </div>
+                        )}
+
+                        <button className="launch-btn" onClick={handleLaunch} disabled={busy || processAlive}>
+                            {processAlive ? "Running" : "▶ Launch App"}
+                        </button>
+
+                        <div className="secondary-actions">
+                            <button onClick={handleStop} disabled={busy || !processAlive}>
+                                Stop
+                            </button>
+                            <button onClick={handleRestart} disabled={busy || !config.repoPath}>
+                                Restart
+                            </button>
+                            <button
+                                onClick={() => openUrl(`http://127.0.0.1:${config.port}/`).catch(e => setError(String(e)))}
+                                disabled={!status?.server.ok}
+                            >
+                                Open in Browser
+                            </button>
+                        </div>
+
+                        {status && (
+                            <div className="status-detail">
+                                <div>Uptime: {status.server.uptimeSeconds}s</div>
+                                <div>Priced items: {status.database.itemCount}</div>
+                                <div>
+                                    Pluto last poll:{" "}
+                                    {status.pluto.lastPollAt
+                                        ? `${Math.round((Date.now() - status.pluto.lastPollAt) / 1000)}s ago`
+                                        : "never this session"}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {tab === "help" && (
+                    <div className="help">
+                        <h3>Setup Guides</h3>
+                        <p>Opens the source docs in your default editor/viewer.</p>
+                        <div className="help-links">
+                            <button onClick={() => openPath(`${config.repoPath}\\..\\README.md`).catch(e => setError(String(e)))}>
+                                OpenMarket README
+                            </button>
+                            <button
+                                onClick={() =>
+                                    openPath(`${config.repoPath}\\..\\..\\docs\\pluto-scripting-guide.md`).catch(e => setError(String(e)))
+                                }
+                            >
+                                Pluto Scripting Guide
+                            </button>
+                        </div>
+                        <h3>Troubleshooting</h3>
+                        <ul>
+                            <li><strong>Server stuck on "Starting...":</strong> check the terminal panel below for a stack trace - usually a missing `npm install` in `server/`.</li>
+                            <li><strong>Database stays "Disconnected":</strong> `price-history.seed.json` failed to load - check it exists in the repo's `server/` folder.</li>
+                            <li><strong>Pluto Client never connects:</strong> the launcher only observes; you still have to start Market Sync.pluto yourself in-game. Check the Bootstrapper's script_log at http://localhost:6155/script_log for errors.</li>
+                            <li><strong>Port already in use:</strong> another instance (or a manual `npm start`) is likely already bound to it - change the port in Settings or stop the other instance.</li>
+                        </ul>
+                    </div>
+                )}
+            </main>
+
+            <div className={`terminal ${terminalOpen ? "open" : "collapsed"}`}>
+                <div className="terminal-header" onClick={() => setTerminalOpen(o => !o)}>
+                    <span>{terminalOpen ? "▼" : "▶"} Terminal Output</span>
+                    <span className="terminal-actions">
+                        <button
+                            onClick={e => {
+                                e.stopPropagation();
+                                setLogLines([]);
+                            }}
+                        >
+                            Clear
+                        </button>
+                    </span>
+                </div>
+                {terminalOpen && (
+                    <div className="terminal-body">
+                        {logLines.length === 0 ? (
+                            <div className="terminal-empty">No output yet - launch the app to see server logs here.</div>
+                        ) : (
+                            logLines.map((line, i) => (
+                                <div key={i} className={line.startsWith("[stderr]") ? "log-line err" : "log-line"}>
+                                    {line}
+                                </div>
+                            ))
+                        )}
+                        <div ref={logEndRef} />
+                    </div>
+                )}
+            </div>
+
+            {settingsOpen && (
+                <div className="drawer-backdrop" onClick={() => setSettingsOpen(false)}>
+                    <div className="drawer" onClick={e => e.stopPropagation()}>
+                        <div className="drawer-header">
+                            <span>Settings</span>
+                            <button className="icon-btn" onClick={() => setSettingsOpen(false)}>
+                                ✕
+                            </button>
+                        </div>
+
+                        <label className="field">
+                            <span>OpenMarket repo path</span>
+                            <div className="field-row">
+                                <input
+                                    value={config.repoPath}
+                                    onChange={e => setConfig(c => ({ ...c, repoPath: e.target.value }))}
+                                    onBlur={() => persistConfig(config)}
+                                    placeholder="C:\Users\...\OpenMarket"
+                                />
+                                <button onClick={() => browseFolder("repoPath")}>Browse</button>
+                            </div>
+                            {repoPathValid === true && <span className="hint ok">✓ server/package.json found</span>}
+                            {repoPathValid === false && <span className="hint bad">✗ no server/package.json here</span>}
+                        </label>
+
+                        <label className="field">
+                            <span>Server port</span>
+                            <input
+                                type="number"
+                                value={config.port}
+                                onChange={e => setConfig(c => ({ ...c, port: Number(e.target.value) || DEFAULT_CONFIG.port }))}
+                                onBlur={() => persistConfig(config)}
+                            />
+                        </label>
+
+                        <label className="field">
+                            <span>Pluto scripts directory</span>
+                            <div className="field-row">
+                                <input
+                                    value={config.plutoScriptsDir}
+                                    onChange={e => setConfig(c => ({ ...c, plutoScriptsDir: e.target.value }))}
+                                    onBlur={() => persistConfig(config)}
+                                    placeholder="...\OpenWF\Scripts"
+                                />
+                                <button onClick={() => browseFolder("plutoScriptsDir")}>Browse</button>
+                            </div>
+                            {plutoDirValid === true && <span className="hint ok">✓ Market Sync.pluto found</span>}
+                            {plutoDirValid === false && <span className="hint bad">✗ Market Sync.pluto not found here</span>}
+                        </label>
+
+                        <label className="field checkbox">
+                            <input
+                                type="checkbox"
+                                checked={config.autoLaunch}
+                                onChange={e => persistConfig({ ...config, autoLaunch: e.target.checked })}
+                            />
+                            <span>Auto-launch server when the launcher opens</span>
+                        </label>
+
+                        <button className="save-btn" onClick={() => persistConfig(config)}>
+                            Save
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
