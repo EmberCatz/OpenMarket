@@ -403,6 +403,47 @@ other distros). Untested on an actual Linux machine as of 2026-09-18 —
 this list is Tauri's documented requirement, not independently confirmed
 on this project yet.
 
+**Orphaned server process on Linux close, found via a real Linux tester
+report (2026-09-20).** Closing the launcher without first clicking Stop
+left the supervised Node server running as an orphan, still bound to the
+port — the next launch (including right after an auto-update, since the
+updater replaces the binary but can't touch an already-running unrelated
+process) then failed to start it at all. Root cause: the existing
+`on_window_event` `CloseRequested` handler (kills the child before the
+window actually closes) only fires for a graceful window close - the X
+button, Alt+F4. A taskbar/dock "Quit", a session logout, or a plain
+`kill`/Ctrl+C in a launching terminal all deliver SIGTERM or SIGINT
+directly to the process instead, bypassing the windowing system's close
+protocol entirely - neither Rust nor Tauri installs a handler for those
+by default, so the process just dies without running any cleanup at all.
+Not a gap Windows shares - its equivalent close paths already funnel
+through `WM_CLOSE` into the same `CloseRequested` event.
+
+Fixed with a `tokio::signal::unix` listener (`SIGTERM` + `SIGINT`,
+`#[cfg(unix)]`-gated so it's fully compiled out on Windows) that kills
+the supervised child before the launcher process itself exits, mirroring
+the existing `CloseRequested` cleanup. Deliberately does **not** use
+`PR_SET_PDEATHSIG` - the Linux-native "kill my child no matter how I
+die" `prctl()` flag, which would also survive an uncatchable `SIGKILL`
+that a userspace signal handler can't. Its semantics (per `man 2 prctl`)
+track the specific OS *thread* that forked the child, not the process as
+a whole - a real footgun on a multi-threaded tokio runtime
+(`rt-multi-thread` is in use here): the exact thread that happened to
+perform the fork could get recycled by tokio's own thread pool while the
+launcher is still very much alive, killing the server out from under a
+running session for no visible reason. A plain signal handler has no
+such risk and covers every closing path except `SIGKILL` - which isn't a
+gap this fix (or any userspace fix, in any language) could close anyway.
+
+Windows re-verified with a real `cargo check` (the new code is entirely
+behind `#[cfg(unix)]`, so it doesn't even get compiled there). **The Unix
+branch itself is unverified** - no Linux Rust target on this machine, so
+it's neither compiled nor run; `tokio::signal` has no known
+multi-threading gotchas the way `PR_SET_PDEATHSIG` does, but this
+genuinely needs a real Linux smoke test (send `SIGTERM` to a running
+launcher, confirm the Node process is actually gone afterward) before or
+soon after it ships.
+
 ### Releases and auto-update
 
 Tagged releases (`v*`) build via GitHub Actions

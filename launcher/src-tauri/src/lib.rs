@@ -331,6 +331,60 @@ async fn fetch_server_status(port: u16) -> Result<serde_json::Value, String> {
     resp.json::<serde_json::Value>().await.map_err(|e| e.to_string())
 }
 
+// Closing the launcher via its own window (the X button, Alt+F4, etc.)
+// already goes through the CloseRequested handler below - but that's not
+// the only way a Linux desktop app gets terminated. A taskbar/dock
+// "Quit", a session logout, or a plain `kill`/Ctrl+C in a launching
+// terminal all deliver SIGTERM (or SIGINT) directly to the process,
+// bypassing the windowing system's close protocol entirely. Neither Rust
+// nor Tauri installs a handler for those by default, so without this the
+// process just dies immediately - orphaning the supervised Node server,
+// which keeps holding the port and blocks the NEXT launch (including
+// right after an auto-update) from starting it. Reported 2026-09-20 by a
+// Linux tester; not a gap Windows shares (its equivalent close paths
+// already funnel through WM_CLOSE -> CloseRequested).
+//
+// Deliberately does NOT use PR_SET_PDEATHSIG (the more bulletproof
+// Linux-native "kill my child no matter how I die" mechanism) - its
+// semantics track the specific OS THREAD that forked the child, not the
+// process as a whole (see `man 2 prctl`), which is a real footgun on a
+// multi-threaded tokio runtime (`rt-multi-thread` is in use here): the
+// tracked thread could get recycled by tokio's own thread pool while the
+// app is still very much alive, killing the server out from under a
+// running session for no visible reason. A plain signal handler has no
+// such risk and still covers every case except an uncatchable SIGKILL -
+// which nothing in userspace can handle in any language, so it isn't a
+// gap this fix could close anyway.
+#[cfg(unix)]
+fn install_unix_signal_shutdown_handler(app: AppHandle) {
+    use tokio::signal::unix::{signal, SignalKind};
+    tauri::async_runtime::spawn(async move {
+        let mut sigterm = match signal(SignalKind::terminate()) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("Failed to install SIGTERM handler: {e}");
+                return;
+            }
+        };
+        let mut sigint = match signal(SignalKind::interrupt()) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("Failed to install SIGINT handler: {e}");
+                return;
+            }
+        };
+        tokio::select! {
+            _ = sigterm.recv() => {}
+            _ = sigint.recv() => {}
+        }
+        let state = app.state::<ServerProcess>();
+        if let Some(mut child) = state.0.lock().await.take() {
+            let _ = child.kill().await;
+        }
+        app.exit(0);
+    });
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -352,6 +406,11 @@ pub fn run() {
             is_server_running,
             fetch_server_status
         ])
+        .setup(|_app| {
+            #[cfg(unix)]
+            install_unix_signal_shutdown_handler(_app.handle().clone());
+            Ok(())
+        })
         .on_window_event(|window, event| {
             // Don't leave the supervised server running as an orphan
             // when the launcher window closes - the whole point of the
