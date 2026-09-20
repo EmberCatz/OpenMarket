@@ -165,7 +165,7 @@ apiRouter.post("/order", async (req, res) => {
 });
 
 // Prime sets have no single "owned" count that means anything (buying one
-// grants 4 different real parts, never the set's own gameRef - see
+// grants several different real parts, never the set's own gameRef - see
 // itemsCache.ts) - the frontend only ever calls this for sellable items
 // (individual parts, mods/arcanes at rank 0, relics at any refinement).
 apiRouter.get("/owned/:slug", async (req, res) => {

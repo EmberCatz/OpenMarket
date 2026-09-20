@@ -215,7 +215,7 @@ const TYPE_SORT_ORDER = { mod: 0, arcane: 1, relic: 2, prime_part: 3, prime_set:
 
 // Applied to the already-grouped display rows (post prime-set collapsing)
 // rather than the raw item list, so a set sorts as one unit alongside
-// everything else instead of its 4 (hidden) children being compared
+// everything else instead of its (hidden) children being compared
 // individually. Returns a NEW array - never mutates `rows` in place,
 // since the caller may still need the original order (e.g. if a sort
 // mode is later changed back to "default").
@@ -258,15 +258,15 @@ async function applySort(rows) {
     return rows;
 }
 
-// Collapse a Prime set's 4 individual part rows into their owning set row
-// (one top-level row instead of 5) whenever the set itself is also present
-// in the current filtered results - expanding it always shows the real 4
-// parts (resolved fresh from allItems by gameRef, not re-filtered), so
-// toggling it open never depends on what search text got you there. A part
-// whose set ISN'T in the current results (e.g. searching "chassis" matches
-// every frame's Chassis Blueprint by name but no set name contains
-// "chassis") has nothing to nest under, so it stays a normal flat row -
-// deliberate fallback rather than hiding it.
+// Collapse a Prime set's individual part rows into their owning set row
+// (one top-level row instead of one-per-part) whenever the set itself is
+// also present in the current filtered results - expanding it always
+// shows the real parts (resolved fresh from allItems by gameRef, not
+// re-filtered), so toggling it open never depends on what search text got
+// you there. A part whose set ISN'T in the current results (e.g.
+// searching "chassis" matches every frame's Chassis Blueprint by name but
+// no set name contains "chassis") has nothing to nest under, so it stays
+// a normal flat row - deliberate fallback rather than hiding it.
 function buildDisplayRows(matches) {
     const byGameRef = new Map(allItems.map(i => [i.gameRef, i]));
     const matchedSetGameRefs = new Set(matches.filter(i => i.type === "prime_set").map(i => i.gameRef));
@@ -281,7 +281,18 @@ function buildDisplayRows(matches) {
     for (const item of matches) {
         if (item.type === "prime_part" && partsOwnedByMatchedSets.has(item.gameRef)) continue;
         if (item.type === "prime_set" && matchedSetGameRefs.has(item.gameRef)) {
-            const children = item.parts.map(p => byGameRef.get(p.gameRef)).filter(Boolean);
+            // item.parts can list the same gameRef more than once - some
+            // weapon Prime sets need 2 copies of the same real part to
+            // grant (see itemsCache.ts's buildPrimeCategoryItems()) - but
+            // the accordion should still show each distinct part once.
+            const seenGameRefs = new Set();
+            const children = [];
+            for (const part of item.parts) {
+                if (seenGameRefs.has(part.gameRef)) continue;
+                seenGameRefs.add(part.gameRef);
+                const child = byGameRef.get(part.gameRef);
+                if (child) children.push(child);
+            }
             rows.push({ item, children });
         } else {
             rows.push({ item, children: null });
@@ -329,8 +340,10 @@ async function render() {
 
 // Repurposes a Prime set row's otherwise-unused Sell button slot (sets
 // can't be sold as a unit - see renderRow's module comment) into a
-// collapse/expand toggle for its 4 real parts, rendered as ordinary
-// nested rows via the same renderRow() every other item uses.
+// collapse/expand toggle for its real parts (2-4 for Warframes and
+// weapons alike, since both are drawn from the same deduped per-part
+// catalog rows - see itemsCache.ts's buildPrimeCategoryItems()), rendered
+// as ordinary nested rows via the same renderRow() every other item uses.
 function attachSetChildren(row, childItems) {
     const toggleBtn = row.querySelector(".btn-sell");
     toggleBtn.classList.remove("btn-sell");
@@ -544,13 +557,18 @@ function capitalize(s) {
     return s.length ? s[0].toUpperCase() + s.slice(1) : s;
 }
 
-// Small bottom-right badge on a Prime part's icon showing which of the 4
-// fixed Warframe slots it is (item.slot, set server-side in itemsCache.ts
-// from the part's gameRef - "Blueprint"/"HelmetBlueprint"/"ChassisBlueprint"/
-// "SystemsBlueprint" suffixes, verified uniform across all 50 sets). Hand-
-// drawn glyphs, not real game assets - the actual slot icon textures aren't
-// exposed in the local Public Export data (they're packed game textures).
-// Paths deliberately avoid fine detail since they render at ~10-12px.
+// Small bottom-right badge on a Prime part's icon showing which slot it is
+// (item.slot, set server-side in itemsCache.ts from the part's gameRef
+// suffix). Warframe parts are one of exactly 4 fixed slots; weapon parts
+// vary by weapon type (2-4 real parts, ~17 possible slot names - see
+// itemsCache.ts's weaponPrimeSlotFromGameRef()). Hand-drawn glyphs, not
+// real game assets - the actual slot icon textures aren't exposed in the
+// local Public Export data (they're packed game textures). Paths
+// deliberately avoid fine detail since they render at ~10-12px. The
+// rarer/more specific weapon slots (gauntlet/guard/head/disc/grip/boot/
+// chain/ornament/upperLimb/lowerLimb - ~10% of real weapon parts) share
+// one generic "component" glyph rather than 10 more bespoke shapes -
+// SLOT_LABELS still gives each its own exact tooltip text.
 const SLOT_ICONS = {
     blueprint:
         '<rect x="5" y="3" width="14" height="18" rx="1.5"/>' +
@@ -561,15 +579,59 @@ const SLOT_ICONS = {
         '<path d="M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6z"/>',
     systems:
         '<path d="M9 3h6v3h3v6h-3v3H9v-3H6V6h3z"/>' +
-        '<rect x="10" y="10" width="4" height="4" fill="var(--bg)"/>'
+        '<rect x="10" y="10" width="4" height="4" fill="var(--bg)"/>',
+    barrel:
+        '<rect x="4" y="10" width="16" height="4" rx="1"/>' +
+        '<rect x="15" y="9" width="2" height="6" fill="var(--bg)"/>',
+    receiver:
+        '<rect x="4" y="8" width="16" height="8" rx="1.5"/>' +
+        '<rect x="8" y="8" width="2" height="8" fill="var(--bg)"/>' +
+        '<rect x="14" y="8" width="2" height="8" fill="var(--bg)"/>',
+    stock:
+        '<path d="M4 9h9l6 3v3l-6 3H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1z"/>',
+    blade:
+        '<path d="M6 21l3-16 3-2 2 2-6 16z"/>',
+    handle:
+        '<rect x="9" y="3" width="6" height="14" rx="2"/>' +
+        '<path d="M7 17h10v2a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2z"/>',
+    link:
+        '<circle cx="9" cy="9" r="4" fill="none" stroke="currentColor" stroke-width="2.5"/>' +
+        '<circle cx="15" cy="15" r="4" fill="none" stroke="currentColor" stroke-width="2.5"/>',
+    component:
+        '<path d="M12 3l3 3-3 3-3-3z"/>' +
+        '<path d="M12 15l3 3-3 3-3-3z"/>' +
+        '<path d="M3 12l3-3 3 3-3 3z"/>' +
+        '<path d="M15 12l3-3 3 3-3 3z"/>'
 };
 
 const SLOT_LABELS = {
     blueprint: "Blueprint",
     helmet: "Neuroptics",
     chassis: "Chassis",
-    systems: "Systems"
+    systems: "Systems",
+    barrel: "Barrel",
+    receiver: "Receiver",
+    stock: "Stock",
+    blade: "Blade",
+    handle: "Handle",
+    link: "Link",
+    gauntlet: "Gauntlet",
+    guard: "Guard",
+    head: "Head",
+    disc: "Disc",
+    grip: "Grip",
+    boot: "Boot",
+    chain: "Chain",
+    ornament: "Ornament",
+    string: "String",
+    upperLimb: "Upper Limb",
+    lowerLimb: "Lower Limb"
 };
+
+// Slots sharing the generic "component" glyph (see SLOT_ICONS comment).
+const GENERIC_COMPONENT_SLOTS = new Set([
+    "gauntlet", "guard", "head", "disc", "grip", "boot", "chain", "ornament", "string", "upperLimb", "lowerLimb"
+]);
 
 // Shows a larger version of an item's icon next to the cursor on hover -
 // especially useful for reading a mod's artwork/text at a size the tiny
@@ -603,13 +665,14 @@ function attachIconPreview(icon, item) {
 
 function applySlotBadge(row, item) {
     const badge = row.querySelector(".slot-badge");
-    if (!item.slot || !SLOT_ICONS[item.slot]) {
+    if (!item.slot || !SLOT_LABELS[item.slot]) {
         badge.hidden = true;
         return;
     }
+    const iconKey = GENERIC_COMPONENT_SLOTS.has(item.slot) ? "component" : item.slot;
     badge.hidden = false;
     badge.title = SLOT_LABELS[item.slot];
-    badge.innerHTML = `<svg viewBox="0 0 24 24">${SLOT_ICONS[item.slot]}</svg>`;
+    badge.innerHTML = `<svg viewBox="0 0 24 24">${SLOT_ICONS[iconKey]}</svg>`;
 }
 
 // The same +/-/value markup (".rank-stepper") is reused for two different
@@ -703,7 +766,7 @@ function renderRow(item) {
     let ownedCount = null;
     let ownedKnown = false;
 
-    // A Prime set has no single "owned" count (buying one grants 4
+    // A Prime set has no single "owned" count (buying one grants several
     // different real parts, never the set's own path) and its Sell slot
     // is repurposed as the parts-dropdown toggle anyway - skip entirely.
     function fetchOwned() {

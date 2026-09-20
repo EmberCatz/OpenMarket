@@ -38,8 +38,8 @@ stocked with real market prices, not an actual trading system.
 
 ## Features
 
-- **Mods, Arcanes, Relics, and Prime Warframe parts/sets** — buy and sell
-  at any rank (mods/arcanes) or refinement (relics).
+- **Mods, Arcanes, Relics, and Prime Warframe & Weapon parts/sets** — buy
+  and sell at any rank (mods/arcanes) or refinement (relics).
 - **Real prices**, refreshed weekly from warframe.market's historical
   order data — not made up, not live-fetched on every click.
 - **Live owned counts**, synced from your actual SpaceNinjaServer
@@ -49,9 +49,9 @@ stocked with real market prices, not an actual trading system.
 - **Desktop launcher** (Windows/Linux) that starts the backend for you,
   shows connection status, and streams logs — no terminal required.
 
-Not covered (yet): weapon Prime parts (Warframes only for now), skins/
-cosmetics, and selling a full Prime set as one unit. See
-[DEVLOG.md](DEVLOG.md#known-limitations) for the complete list and why.
+Not covered (yet): skins/cosmetics, and selling a full Prime set as one
+unit. See [DEVLOG.md](DEVLOG.md#known-limitations) for the complete list
+and why.
 
 ## Screenshots & Media
 
@@ -143,7 +143,6 @@ already been found and fixed (or are known and still open), see
 
 ## Known limitations
 
-- No weapon Prime parts yet — Warframes only.
 - No unique-instance cosmetics (skins) — warframe.market doesn't carry
   trade data for those at all.
 - Can't sell a full Prime set as one unit, only its individual parts.

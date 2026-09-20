@@ -15,6 +15,44 @@ shipped (e.g. `v1.0.2.md`) and create a fresh `unreleased.md` — see
 
 ---
 
+## 2026-09-20 — Weapon Prime parts/sets added
+
+Prime Warframe parts were the only Prime support until now (README/BUGS.md/
+DEVLOG.md all listed weapon Primes as a known gap). Added alongside the
+existing Warframe implementation rather than replacing it: a new
+`server/tools/generate-prime-weapon-sets.js` (mirrors
+`generate-prime-sets.js`) builds `prime-weapon-sets.json` from
+`ExportRecipes.json`, and `itemsCache.ts`'s `buildPrimeItems()` was
+generalized into `buildPrimeCategoryItems()` so both Warframe and weapon
+sets share one code path.
+
+Unlike Warframes (always exactly 4 parts, needing a two-stage
+finished-component → building-Blueprint resolution), a weapon's physical
+components are directly tradeable Recipes already, but part count varies
+2-4 by weapon type, and a handful of Akimbo pistols need duplicate parts
+or a nested copy of an entirely different, already-existing single
+Prime's own part set (e.g. Akmagnus Prime = 2 complete Magnus Prime sets
++ its own Link) — all confirmed from source across the 87 real Prime
+weapon blueprints in Public Export, not assumed to generalize from the
+Warframe shape. `parts` can now legitimately list the same gameRef more
+than once (grant-count correctness); both the server's flat catalog rows
+and the frontend's parts-accordion (`buildDisplayRows()` in `app.js`)
+dedupe that for display while the actual grant list keeps every
+duplicate.
+
+- No launcher rebuild needed — server/frontend-only change.
+- Reuses the already-proven `Recipes`-category grant/sell mechanism
+  (`Market Sync.pluto` needed zero changes) — verified via a scratch-port
+  curl pass: `/api/items` resolved 85 of the 87 candidate weapon sets
+  against the live warframe.market bulk list (2 don't have a real
+  listing and are silently skipped, same as any unresolvable Warframe
+  set), and order creation succeeded for both a plain weapon part and the
+  8-part Akmagnus Prime Set. **Not yet confirmed with a real in-game
+  Foundry build** — see DEVLOG.md's "Known limitations".
+- See `DEVLOG.md` under "Scope, in detail" and "Confirmed HTTP
+  mechanics"; `README.md`'s Features/Known limitations updated to drop
+  the "Warframes only" caveat.
+
 ## 2026-09-20 — Homebrew/Linuxbrew npm install fix
 
 `install_server_deps` was resolving npm's CLI entry point manually on

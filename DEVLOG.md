@@ -20,20 +20,40 @@ warframe.market's `gameRef` for a relic is the base path with no
 refinement suffix, so this app resolves the right suffix server-side per
 order.
 
-**Prime Warframe parts** are category `Recipes` — all 4 real tradeable
-members of a set (the main Blueprint + the 3 component Blueprints) are
-`ExportRecipes`-backed. The finished components a main Blueprint's
-ingredients list (e.g. `...SystemsComponent`) are *not* what's actually
-tradeable — a separate `...SystemsBlueprint` recipe builds them, and
-that's the real tradeable item. A Set's own `gameRef` (e.g.
-`/Lotus/Powersuits/Volt/VoltPrime`) is the *finished Warframe's own type
-path* and is never granted directly — that would route through
-`addPowerSuit()` (unique-instance, deliberately avoided, same class of
-problem as unique-instance gear). "Buying a set" instead grants every
-member part individually in one script-side loop, for one bundled price
-sourced from the Set's own real warframe.market listing. v1 covers
-Warframes only (fixed 4-part shape); weapons vary 2-5 parts and are
-deferred.
+**Prime parts (Warframe and weapon)** are category `Recipes`. For a
+**Warframe**, all 4 real tradeable members of a set (the main Blueprint +
+the 3 component Blueprints) are `ExportRecipes`-backed. The finished
+components a main Blueprint's ingredients list (e.g.
+`...SystemsComponent`) are *not* what's actually tradeable — a separate
+`...SystemsBlueprint` recipe builds them, and that's the real tradeable
+item. A Set's own `gameRef` (e.g. `/Lotus/Powersuits/Volt/VoltPrime`) is
+the *finished Warframe's own type path* and is never granted directly —
+that would route through `addPowerSuit()` (unique-instance, deliberately
+avoided, same class of problem as unique-instance gear). "Buying a set"
+instead grants every member part individually in one script-side loop,
+for one bundled price sourced from the Set's own real warframe.market
+listing.
+
+**Weapon** Prime parts (added 2026-09-20) follow the same "grant every
+real part" model, but not the fixed 4-part shape — a weapon's physical
+components (Barrel/Receiver/Blade/Handle/etc.) are directly tradeable
+Recipes already, no two-stage resolution needed, but part count runs 2-4
+depending on weapon type (confirmed from source across all 87 real Prime
+weapon blueprints in `ExportRecipes.json`, not assumed to generalize from
+the Warframe 4-slot model — see `server/tools/generate-prime-weapon-sets.js`'s
+header comment for the full breakdown). A handful of Akimbo pistols also
+need 2 copies of the same real part (e.g. 2x Barrel + 2x Receiver), or
+even a nested copy of an entirely different, already-existing single
+Prime's own part set — Akmagnus/Aklex/Akbronco/Akvasto Prime are each
+built from 2 complete copies of a single pistol's own 3-part set (that
+single pistol's finished weapon isn't itself tradeable, only its
+Blueprint/Barrel/Receiver are) plus their own Link part. The generator
+resolves this recursively so `parts` always lists real, individually
+grantable gameRefs, duplicates included; `itemsCache.ts`'s
+`buildPrimeCategoryItems()` dedupes those duplicates for the flat
+per-part catalog rows and the parts-accordion UI, while the actual grant
+list (used at buy time) keeps every duplicate, since e.g. Akmagnus Prime
+genuinely needs 2 Magnus Prime Blueprints granted, not 1.
 
 ## Architecture
 
@@ -173,19 +193,27 @@ Prime parts/sets get no stepper (no rank/refinement concept) — individual
 parts behave exactly like a Relic row (Buy + Sell). A Set row instead
 shows a single **"Buy Full Set"** button in place of Buy/Sell, plus a
 **"▸ Parts"** dropdown toggle in the Sell button's slot that expands to
-show its 4 real member parts as nested rows (each with normal Buy/Sell),
-collapsed by default. Browsing/searching Primes shows one row per set
-instead of 5 — a part only stays a standalone top-level row if its owning
-set isn't also in the current filtered results (e.g. searching "chassis
-blueprint" matches every frame's Chassis part by name but no set name
-contains "chassis", so there's nothing to nest under).
+show its real member parts (2-4, depending on Warframe vs. weapon and
+weapon type) as nested rows (each with normal Buy/Sell), collapsed by
+default and deduped by gameRef first — a weapon set's `parts` can
+legitimately list the same real part more than once (see
+[Scope, in detail](#scope-in-detail)). Browsing/searching Primes shows one
+row per set instead of one-per-part — a part only stays a standalone
+top-level row if its owning set isn't also in the current filtered
+results (e.g. searching "chassis blueprint" matches every frame's Chassis
+part by name but no set name contains "chassis", so there's nothing to
+nest under).
 
 Individual Prime part rows also get a small badge in the icon's
-bottom-right corner showing which of the 4 fixed Warframe slots it is
-(Blueprint/Neuroptics/Chassis/Systems) — hand-drawn glyphs, not real game
-assets (those slot icons are packed game textures, not exposed in the
-local Public Export data), derived from the part's own gameRef suffix,
-verified uniform across all 50 sets.
+bottom-right corner showing which slot it is — hand-drawn glyphs, not
+real game assets (those slot icons are packed game textures, not exposed
+in the local Public Export data), derived from the part's own gameRef
+suffix. Warframe parts are one of exactly 4 fixed slots
+(Blueprint/Neuroptics/Chassis/Systems), verified uniform across all 50
+sets. Weapon parts vary by weapon type (Barrel/Receiver/Stock/Blade/
+Handle/Link/etc., ~17 possible names confirmed from source) — the 6 most
+common get their own icon, the rarer ones share one generic glyph (exact
+name still shown in the tooltip).
 
 Every sellable row also shows an **"Owned: N"** count (red at 0), reported
 live by `Market Sync.pluto` from `/api/inventory.php`. Sell auto-disables
@@ -439,6 +467,20 @@ Read directly from SpaceNinjaServer's source, not guessed:
   confirmed it appeared in the Foundry's Blueprints tab, sold it back,
   visually confirmed it was gone. "Buy Full Set" was also verified
   through the real UI.
+- **Prime WEAPON parts/sets (added 2026-09-20) reuse this identical
+  mechanism** — same category `Recipes`, same plain path+count grant/sell
+  call, just different (weapon) gameRefs — so no new in-game mechanism
+  confirmation is needed beyond the Warframe Prime Recipe probe above.
+  What's genuinely new and NOT yet in-game-verified is the *data* itself:
+  whether every one of the 87 generated `parts` lists (especially the 4
+  Akimbo sets with a nested/duplicated inner set - see
+  [Scope, in detail](#scope-in-detail)) is actually correct end-to-end
+  for a real Foundry build. Verified so far only against source
+  (`ExportRecipes.json`) and a scratch-port curl pass confirming the app
+  resolves/enqueues them without error (order creation for both a plain
+  weapon part and the 8-part Akmagnus Prime Set succeeded, `/api/items`
+  correctly resolved 85 of the 87 candidate weapon sets against the live
+  warframe.market bulk list), not against a real in-game grant.
 - **Owned-count sync (`GET /api/owned`, `POST /internal/inventory-snapshot`),
   CONFIRMED WORKING (2026-09-17).** `Market Sync.pluto` fetches
   `GET /api/inventory.php` on its own 30s timer and reports a flattened
@@ -489,8 +531,12 @@ Read directly from SpaceNinjaServer's source, not guessed:
   `/api/inventory.php`-based oid resolution).
 - Selling a specific ranked mod/arcane copy is only possible through the
   "▸ N owned at other ranks" breakdown, not the main row's Sell button.
-- Prime Warframe parts only — weapon Prime parts deferred (2-5 parts by
-  weapon type vs. Warframes' fixed 4, more shapes to handle correctly).
+- Weapon Prime parts/sets are unverified in-game (see
+  [Confirmed HTTP mechanics](#confirmed-http-mechanics) above) — data
+  correctness only, not a new mechanism. 2 of the 87 candidate blueprints
+  in Public Export (Galariak/Sagek Prime) don't resolve against a real
+  warframe.market listing and are silently skipped, same as any
+  unresolvable Warframe set.
 - Selling a full Prime set isn't supported, only individual parts — a
   deliberate scope choice (matches how a player would realistically use
   this anyway).

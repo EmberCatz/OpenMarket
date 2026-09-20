@@ -1,0 +1,1877 @@
+[
+  {
+    "setGameRef": "/Lotus/Weapons/Grineer/Melee/Scythe/GrnDrillScythe/GrnDrillScythe",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/GalariakPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/GalariakPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/GalariakPrimeHandle",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Grineer/Pistols/GrnOrokinPistol/GrnOrokinPistol",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/SagekPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/SagekPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/SagekPrimeReceiver",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Akimbo/AkLexPrimePistols",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/AklexPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/LexPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/LexPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/LexPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/LexPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/LexPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/LexPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AklexPrimeLink",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Akimbo/DualMagnusPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/AkmagnusPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/MagnusPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/MagnusPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/MagnusPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/MagnusPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/MagnusPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/MagnusPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkmagnusPrimeLink",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Akimbo/PrimeAkimboShotGun",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/AkbroncoPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/BroncoPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/BroncoPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/BroncoPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/BroncoPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/BroncoPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/BroncoPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkbroncoPrimeLink",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Archwing/Primary/PrimeCorvas/PrimeCorvasWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/CorvasPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/CorvasPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/CorvasPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/CorvasPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Archwing/Primary/PrimeLarkspur/PrimeLarkspurWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/LarkspurPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/LarkspurPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/LarkspurPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/LarkspurPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Bows/PrimeHuntingBow",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/BowPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PrimeBowLowerLimb",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PrimeBowUpperLimb",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PrimeBowGrip",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PrimeBowString",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimeAcceltra/PrimeAcceltraWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/AcceltraPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AcceltraPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AcceltraPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AcceltraPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimeAfentis/PrimeAfentisWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/AfentisPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AfentisPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AfentisPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AfentisPrimeHandle",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimeAlternox/PrimeAlternoxWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/AlternoxPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AlternoxPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AlternoxPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AlternoxPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimeAstilla/AstillaPrimeWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/AstillaPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AstillaPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AstillaPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AstillaPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimeBaza/PrimeBazaGun",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/BazaPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/BazaPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/BazaPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/BazaPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimeBoltor/PrimeBoltor",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/BoltorPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/BoltorPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/BoltorPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/BoltorPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimeBurston/PrimeBurston",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/BurstonPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/BurstonPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/BurstonPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/BurstonPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimeCedo/PrimeCedoWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/CedoPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/CedoPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/CedoPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/CedoPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimeCorinth/PrimeCorinth",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/CorinthPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/CorinthPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/CorinthPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/CorinthPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimeFulmin/PrimeFulmin",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/FulminPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/FulminPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/FulminPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/FulminPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimeNagantaka/PrimeNagantakaWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/NagantakaPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/NagantakaPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/NagantakaPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/NagantakaPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimePanthera/PrimePanthera",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/PantheraPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PantheraPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PantheraPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PantheraPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimePerigale/PrimePerigaleSniper",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/PerigalePrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PerigalePrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PerigalePrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PerigalePrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimePhantasma/PhantasmaPrimeShotgun",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/PhantasmaPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PhantasmaPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PhantasmaPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PhantasmaPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimeScourge/PrimeScourgeWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/ScourgePrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/ScourgePrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/ScourgePrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/ScourgePrimeHandle",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimeSoma/PrimeSomaRifle",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/SomaPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/SomaPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/SomaPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/SomaPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimeStradavar/PrimeStradavarGun",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/StradavarPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/StradavarPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/StradavarPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/StradavarPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimeStrun/PrimeStrunWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/StrunPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/StrunPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/StrunPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/StrunPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimeSybaris/PrimeSybarisRifle",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/SybarisPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/SybarisPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/SybarisPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/SybarisPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimeTenora/TenoraPrimeWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/TenoraPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/TenoraPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/TenoraPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/TenoraPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimeTiberon/PrimeTiberonRifle",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/TiberonPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/TiberonPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/TiberonPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/TiberonPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimeTrumna/PrimeTrumnaWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/TrumnaPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/TrumnaPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/TrumnaPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/TrumnaPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimeVectis/PrimeVectisRifle",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/VectisPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/VectisPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/VectisPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/VectisPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/PrimeZhuge/PrimeZhugeCrossbow",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/ZhugePrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/ZhugePrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/ZhugePrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/ZhugePrimeStock",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/ZhugePrimeString",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/LongGuns/RubicoPrime/RubicoPrimeWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/RubicoPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/RubicoPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/RubicoPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/RubicoPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/Axe/PrimeVorunaAxeWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/SarofangPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/SarofangPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/SarofangPrimeHandle",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/Axe/PrimeZoren/PrimeZorenAxeWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/DualZorenPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/DualZorenPrimeHandle",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/DualZorenPrimeHandle",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/DualZorenPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/DualZorenPrimeBlade",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/DualDagger/FangPrimeDagger",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/FangPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PrimeFangHandle",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PrimeFangHandle",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PrimeFangBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PrimeFangBlade",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/Gauntlet/PrimeAnkyros/PrimeAnkyros",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/AnkyrosPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AnkyrosPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AnkyrosPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AnkyrosPrimeGauntlet",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AnkyrosPrimeGauntlet",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/Glaives/PrimeGlaive/PrimeGlaiveWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/GlaivePrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/GlaivePrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/GlaivePrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/GlaivePrimeDisc",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/Glaives/PrimeKestrel/PrimeKestrel",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/KestrelPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/KestrelPrimeGrip",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/KestrelPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/KestrelPrimeBlade",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/Gunblade/RedeemerPrime/RedeemerPrimeWep",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/RedeemerPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/RedeemerPrimeHandle",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/RedeemerPrimeBlade",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/Polearms/PrimeGuandao/PrimeGuandaoWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/GuandaoPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/GuandaoPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/GuandaoPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/GuandaoPrimeHandle",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/Polearms/PrimePolearmWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/PolearmPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PrimePolearmBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PrimePolearmBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PrimePolearmHandle",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/PrimeFragor/PrimeFragor",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/FragorPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/FragorPrimeHead",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/FragorPrimeHandle",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/PrimeKogake/KogakePrimeKnuckles",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/KogakePrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/KogakePrimeGauntlet",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/KogakePrimeGauntlet",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/KogakePrimeBoot",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/KogakePrimeBoot",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/PrimeNinkondi/PrimeNikondi",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/NinkondiPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/NinkondiPrimeHandle",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/NinkondiPrimeHandle",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/NinkondiPrimeChain",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/PrimeSilvaAegis/PrimeSilvaAegis",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/SilvaAegisPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/SilvaAegisPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/SilvaAegisPrimeHandle",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/SilvaAegisPrimeGuard",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/PrimeTekko/PrimeTekko",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/TekkoPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/TekkoPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/TekkoPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/TekkoPrimeGauntlet",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/TekkoPrimeGauntlet",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/PrimeVolnus/VolnusPrimeWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/VolnusPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/VolnusPrimeHandle",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/VolnusPrimeHead",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/Scythe/PrimeVento/PrimeVentoScythe",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/VentoPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/VentoPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/VentoPrimeHandle",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/Staff/TipedoPrime/TipedoPrimeWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/TipedoPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/TipedoPrimeOrnament",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/TipedoPrimeOrnament",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/TipedoPrimeHandle",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/Swords/PRapier/DestrezaPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/DestrezaPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/DestrezaPrimeHandle",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/DestrezaPrimeBlade",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/Swords/PrimeDualKeres/PrimeDualKeresWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/DualKeresPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/DualKeresPrimeHandle",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/DualKeresPrimeHandle",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/DualKeresPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/DualKeresPrimeBlade",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/Swords/PrimeGram/PrimeGram",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/GramPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/GramPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/GramPrimeHandle",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/Swords/PrimeKaryst/PrimeKrisDagger",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/KarystPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/KarystPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/KarystPrimeHandle",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/Swords/PrimeMasseter/PrimeMasseter",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/MasseterPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/MasseterPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/MasseterPrimeHandle",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/Swords/PrimeOkina/PrimeOkina",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/OkinaPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/OkinaPrimeHandle",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/OkinaPrimeHandle",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/OkinaPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/OkinaPrimeBlade",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/Swords/PrimePangolinSword/PrimePangolinSword",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/PangolinPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PangolinPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PangolinPrimeHandle",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/Swords/PrimeTatsu/PrimeTatsuWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/TatsuPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/TatsuPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/TatsuPrimeHandle",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/SwordsAndBoards/PrimeCobraAndCrane/PrimeCobraAndCraneWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/CobraCranePrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/CobraCranePrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/CobraCranePrimeHandle",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/CobraCranePrimeGuard",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/Tonfa/TonfaContestWinnerPrime/TonfaContestWinnerPrimeWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/KronenPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/KronenPrimeHandle",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/KronenPrimeHandle",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/KronenPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/KronenPrimeBlade",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/Warfan/PrimeGunsen/PrimeGunsenWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/GunsenPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/GunsenPrimeHandle",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/GunsenPrimeHandle",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/GunsenPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/GunsenPrimeBlade",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Melee/Warfan/PrimeQuassus/PrimeQuassusWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/QuassusPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/QuassusPrimeHandle",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/QuassusPrimeHandle",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/QuassusPrimeBlade",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/QuassusPrimeBlade",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Pistol/BroncoPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/BroncoPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/BroncoPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/BroncoPrimeReceiver",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Pistols/PrimeAfuris/PrimeAFurisWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/AfurisPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AfurisPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AfurisPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AfurisPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AfurisPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AfurisPrimeLink",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Pistols/PrimeAkarius/PrimeAkariusWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/AkariusPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkariusPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkariusPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkariusPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkariusPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkariusPrimeLink",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Pistols/PrimeAkbolto/PrimeAkBoltoWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/AkboltoPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkboltoPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkboltoPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkboltoPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkboltoPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkboltoPrimeLink",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Pistols/PrimeAkjagara/AkJagaraPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/AkjagaraPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkjagaraPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkjagaraPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkjagaraPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkjagaraPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkjagaraPrimeLink",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Pistols/PrimeAksomati/PrimeAksomati",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/AksomatiPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AksomatiPrimeLink",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AksomatiPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AksomatiPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AksomatiPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AksomatiPrimeReceiver",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Pistols/PrimeAkstiletto/PrimeAkstiletto",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/AkstilettoPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkstilettoPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkstilettoPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkstilettoPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkstilettoPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkstilettoPrimeLink",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Pistols/PrimeAthodai/PrimeAthodaiPistolWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/AthodaiPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AthodaiPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AthodaiPrimeReceiver",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Pistols/PrimeEpitaph/PrimeEpitaphSidearmWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/EpitaphPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/EpitaphPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/EpitaphPrimeReceiver",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Pistols/PrimeHystrix/PrimeHystrixWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/HystrixPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/HystrixPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/HystrixPrimeReceiver",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Pistols/PrimeKnell/PrimeKnellWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/KnellPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/KnellPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/KnellPrimeReceiver",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Pistols/PrimeKompressa/PrimeKompressa",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/KompressaPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/KompressaPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/KompressaPrimeReceiver",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Pistols/PrimeLex/PrimeLex",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/LexPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/LexPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/LexPrimeReceiver",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Pistols/PrimeMagnus/PrimeMagnusWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/MagnusPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/MagnusPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/MagnusPrimeReceiver",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Pistols/PrimePandero/PanderoPrimeWeapon",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/PanderoPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PanderoPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PanderoPrimeReceiver",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Pistols/PrimePyrana/PrimePyranaPistol",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/PyranaPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PyranaPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/PyranaPrimeReceiver",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Pistols/PrimeSicarus/PrimeSicarusPistol",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/SicarusPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/SicarusPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/SicarusPrimeReceiver",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Pistols/PrimeVasto/AkPrimeVasto/AkPrimeVastoPistol",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/AkvastoPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/VastoPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/VastoPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/VastoPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/VastoPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/VastoPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/VastoPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/AkvastoPrimeLink",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Pistols/PrimeVasto/PrimeVastoPistol",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/VastoPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/VastoPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/VastoPrimeReceiver",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Pistols/PrimeVelox/PrimeVeloxPistol",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/VeloxPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/VeloxPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/VeloxPrimeReceiver",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Pistols/PrimeZakti/PrimeZaktiPistol",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/ZaktiPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/ZaktiPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/ZaktiPrimeReceiver",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Pistols/PrimeZylok/ZylokPrimePistol",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/ZylokPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/ZylokPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/ZylokPrimeReceiver",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Rifle/BratonPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/BratonPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/BratonPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/BratonPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/BratonPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Rifle/LatronPrime",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/LatronPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/LatronPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/LatronPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/LatronPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  },
+  {
+    "setGameRef": "/Lotus/Weapons/Tenno/Shotgun/PrimeBoar",
+    "parts": [
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/BoarPrimeBlueprint",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/BoarPrimeBarrel",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/BoarPrimeReceiver",
+        "category": "Recipes"
+      },
+      {
+        "gameRef": "/Lotus/Types/Recipes/Weapons/WeaponParts/BoarPrimeStock",
+        "category": "Recipes"
+      }
+    ]
+  }
+]
