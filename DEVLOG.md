@@ -280,12 +280,32 @@ shell stand-in.**
 
 Fixed by asking the system node for its own `process.execPath` (a real
 `.exe`, spawns fine) and invoking npm's own CLI entry point directly
-through it (`<node_dir>/node_modules/npm/bin/npm-cli.js` on Windows,
-`<node_dir>/../lib/node_modules/npm/bin/npm-cli.js` on Linux/Mac) —
-same "invoke the JS entry directly, skip the wrapper" pattern already
-used for tsx, applied consistently rather than special-cased. Verified
-with a real `tokio::process::Command` spawn test reproducing both the
-original failure and the fix working, not just a compile check.
+through it (`<node_dir>/node_modules/npm/bin/npm-cli.js`) — same
+"invoke the JS entry directly, skip the wrapper" pattern already used
+for tsx. Verified with a real `tokio::process::Command` spawn test
+reproducing both the original failure and the fix working, not just a
+compile check.
+
+**Follow-up bug, found via a Homebrew/Linuxbrew user report (2026-09-20):
+this fix was applied unconditionally across all platforms, but the
+`.cmd`-can't-spawn problem it solves is Windows-only** — on Unix,
+`npm`'s own shim is a real executable (a shebang script the kernel
+dispatches directly), so `Command::new("npm")` already worked fine
+there and never needed the manual resolver at all. The unconditional
+version instead broke Homebrew installs: npm ends up at
+`<brew prefix>/lib/node_modules/npm/bin/npm-cli.js`, which has no
+fixed relative path to the node binary's own directory (which itself
+resolves through a versioned `Cellar/node/<version>/bin/`, not the
+prefix-level symlink) — the guessed `<node_dir>/../lib/...` fallback
+never matched. Rather than add yet another guessed relative layout
+(nvm/volta/fnm/apt all differ too), the manual `npm-cli.js` resolver
+is now `#[cfg(target_os = "windows")]`-gated; Unix goes through
+`Command::new("npm")` directly and lets `$PATH` resolve it the same
+way it already resolves `node`. Windows branch re-verified with a real
+`cargo check`; the Unix branch could not be compiled on this (Windows)
+machine — no Linux Rust target installed here — so it's verified by
+reasoning (same shape as the already-working `check_node`'s
+`Command::new("node")`) rather than an actual build.
 
 Has an **Install** step: if `server/`'s dependencies aren't installed
 yet, or the configured Pluto scripts folder is missing

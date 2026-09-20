@@ -91,20 +91,30 @@ async fn check_server_deps(repo_path: String) -> Result<bool, String> {
 // as a proxy, which uses a completely different execution path than
 // Rust's Command and never actually exercised this).
 //
+// This is Windows-only. On Unix, `npm`'s shim is a real executable
+// (shebang script or symlink to one) that the kernel dispatches
+// directly, so `Command::new("npm")` already works there - confirmed
+// live (2026-09-20) that trying to reuse this resolver unconditionally
+// broke Homebrew/Linuxbrew installs instead, since npm ends up at
+// `<brew prefix>/lib/node_modules/npm/bin/npm-cli.js`, which has no
+// fixed relative path to the node binary's own (often Cellar-nested)
+// directory. Guessing another relative layout would just break the
+// next package manager (nvm/volta/fnm/apt all differ too) - letting
+// $PATH resolve `npm` the same way it already resolves `node` is the
+// only reliable answer on Unix.
+//
 // Fix: ask the system node for its own process.execPath (node.exe is a
 // real executable, this part works fine), then invoke npm's own JS CLI
 // entry directly through it - confirmed to exist at
-// <node_dir>/node_modules/npm/bin/npm-cli.js on Windows and
-// <node_dir>/../lib/node_modules/npm/bin/npm-cli.js on Linux/Mac (node's
-// binary sits in bin/ there, npm-cli.js does not sit next to it).
+// <node_dir>/node_modules/npm/bin/npm-cli.js next to the Node.js
+// installer's node.exe on Windows (the only layout this needs to
+// handle, now that Unix goes through Command::new("npm") directly).
+#[cfg(target_os = "windows")]
 async fn resolve_npm_cli_js() -> Result<(PathBuf, PathBuf), String> {
     let mut cmd = Command::new("node");
     cmd.args(["-e", "console.log(process.execPath)"]).stdout(Stdio::piped()).stderr(Stdio::piped());
-    #[cfg(target_os = "windows")]
-    {
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    cmd.creation_flags(CREATE_NO_WINDOW);
     let output = cmd.output().await.map_err(|e| format!("Failed to run node: {e}"))?;
     if !output.status.success() {
         return Err("Failed to determine the Node.js install location.".into());
@@ -112,13 +122,9 @@ async fn resolve_npm_cli_js() -> Result<(PathBuf, PathBuf), String> {
     let node_exe = PathBuf::from(String::from_utf8_lossy(&output.stdout).trim());
     let node_dir = node_exe.parent().ok_or_else(|| "Could not determine Node.js's install directory.".to_string())?;
 
-    let windows_style = node_dir.join("node_modules").join("npm").join("bin").join("npm-cli.js");
-    if windows_style.exists() {
-        return Ok((node_exe.clone(), windows_style));
-    }
-    let unix_style = node_dir.join("..").join("lib").join("node_modules").join("npm").join("bin").join("npm-cli.js");
-    if unix_style.exists() {
-        return Ok((node_exe.clone(), unix_style));
+    let npm_cli_js = node_dir.join("node_modules").join("npm").join("bin").join("npm-cli.js");
+    if npm_cli_js.exists() {
+        return Ok((node_exe.clone(), npm_cli_js));
     }
     Err(format!("Could not find npm's CLI entry point relative to {}", node_exe.display()))
 }
@@ -136,22 +142,24 @@ async fn install_server_deps(app: AppHandle, repo_path: String) -> Result<(), St
         return Err(format!("No server/package.json found under {}", repo_path));
     }
 
-    let (node_exe, npm_cli_js) = resolve_npm_cli_js().await?;
-
     let _ = app.emit("server-log", "[install] Running npm install in server/ ...".to_string());
 
-    let mut cmd = Command::new(&node_exe);
-    cmd.arg(&npm_cli_js)
-        .arg("install")
+    #[cfg(target_os = "windows")]
+    let mut cmd = {
+        let (node_exe, npm_cli_js) = resolve_npm_cli_js().await?;
+        let mut cmd = Command::new(&node_exe);
+        cmd.arg(&npm_cli_js);
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+        cmd
+    };
+    #[cfg(not(target_os = "windows"))]
+    let mut cmd = Command::new("npm");
+
+    cmd.arg("install")
         .current_dir(&server_dir)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-
-    #[cfg(target_os = "windows")]
-    {
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
 
     let mut child = cmd.spawn().map_err(|e| format!("Failed to run npm install: {e}"))?;
     let stdout = child.stdout.take().expect("piped stdout");
