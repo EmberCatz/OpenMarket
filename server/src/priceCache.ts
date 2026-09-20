@@ -193,18 +193,69 @@ async function runRefreshSweep(): Promise<void> {
     }
 }
 
+// Fills in slugs that have NO price entry at all yet - distinct from the
+// weekly full sweep, which re-checks EVERY slug regardless of whether it
+// already has data. Exists because the catalog can gain new items
+// between full sweeps (new Prime parts/sets added to this app, or DE
+// shipping new tradeable items in general) and the time-gated full sweep
+// alone would leave those with no price for up to a week. Normally a
+// small set, so it completes in seconds even at the same rate-limit-safe
+// sequential pace as a full sweep - never runs concurrently with one
+// (shares `refreshInProgress`, since both hit the same connection limit).
+// Deliberately does NOT touch `lastRefreshCompletedAt` - that field
+// gates the full sweep specifically (which also refreshes EXISTING
+// slugs' potentially-stale prices), and a backfill run must never delay
+// that.
+async function runBackfillSweep(): Promise<void> {
+    if (refreshInProgress) return;
+    const items = await getItems();
+    const missingSlugs = [...new Set(items.map(i => i.slug))].filter(slug => !(slug in priceHistory));
+    if (missingSlugs.length === 0) return;
+
+    refreshInProgress = true;
+    try {
+        console.log(`Price history: backfilling ${missingSlugs.length} item(s) with no price entry yet...`);
+        for (const slug of missingSlugs) {
+            await refreshOneSlug(slug);
+            await sleep(REQUEST_DELAY_MS);
+        }
+        saveToDisk();
+        console.log(`Price history: backfill complete (${missingSlugs.length} item(s)).`);
+    } finally {
+        refreshInProgress = false;
+    }
+}
+
 export function ensureFreshPriceHistory(): void {
     if (lastRefreshCompletedAt === null || Date.now() - lastRefreshCompletedAt > REFRESH_INTERVAL_MS) {
         void runRefreshSweep();
+    } else {
+        void runBackfillSweep();
     }
 }
 
 // Only ensureFreshPriceHistory() at module load checks staleness, and
 // that's only evaluated once at server startup - this catches the case
 // where the server stays running for more than a week straight without
-// a restart.
+// a restart. It also runs the backfill check (see runBackfillSweep) on
+// every tick, so newly-added items don't have to wait for either a
+// restart or the weekly boundary to get a first price.
 setInterval(ensureFreshPriceHistory, 60 * 60 * 1000); // hourly check
 ensureFreshPriceHistory();
+
+// User-triggered full resweep (see routes.ts's POST /api/refresh-prices) -
+// unlike the automatic backfill above, this deliberately re-checks EVERY
+// slug (a user asking to "update prices" wants genuinely current numbers,
+// not just gap-filling) and DOES advance `lastRefreshCompletedAt`, same
+// as the automatic weekly one - it's the same operation, just triggered
+// early. Returns immediately; the sweep itself runs in the background,
+// same as the automatic one - callers should poll getPriceCacheStatus()
+// (already exposed via GET /api/status) for progress/completion.
+export function triggerManualRefresh(): { started: boolean } {
+    if (refreshInProgress) return { started: false };
+    void runRefreshSweep();
+    return { started: true };
+}
 
 export interface PriceInfo {
     slug: string;

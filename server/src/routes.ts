@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getItems, findItemByGameRef, findItemBySlug, resolveSellGameRef, RELIC_REFINEMENT_SUFFIXES } from "./itemsCache.js";
-import { getPrice, getPriceCacheStatus } from "./priceCache.js";
+import { getPrice, getPriceCacheStatus, triggerManualRefresh } from "./priceCache.js";
 import { enqueueOrder, popPendingOrder, reportOrderResult, getOrder } from "./orderQueue.js";
 import {
     setInventorySnapshot,
@@ -47,6 +47,24 @@ apiRouter.get("/status", (_req, res) => {
 });
 
 // --- Frontend-facing ---
+
+// User-triggered "Update Prices" button - forces a full resweep instead
+// of waiting for the automatic weekly one (see priceCache.ts's
+// triggerManualRefresh()/runBackfillSweep() for how a NEW item's price
+// normally gets backfilled automatically without needing this at all;
+// this is for a user who wants genuinely current numbers for everything,
+// not just gap-filling). Returns immediately - the sweep runs in the
+// background, same as the automatic one, so the frontend polls
+// GET /api/status's `database` field for progress/completion rather than
+// waiting on this request.
+apiRouter.post("/refresh-prices", (_req, res) => {
+    const { started } = triggerManualRefresh();
+    if (!started) {
+        res.status(409).json({ error: "A price refresh is already in progress." });
+        return;
+    }
+    res.status(202).json({ started: true });
+});
 
 apiRouter.get("/items", async (_req, res) => {
     try {

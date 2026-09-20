@@ -15,6 +15,29 @@ shipped (e.g. `v1.0.2.md`) and create a fresh `unreleased.md` — see
 
 ---
 
+## 2026-09-20 — Automatic price backfill + manual "Update Prices" button
+
+Reported same-day: the newly-added weapon Prime parts/sets (see below)
+showed no price at all. Root cause: the weekly sweep is purely
+time-gated, so a catalog change between sweeps left new slugs with no
+entry until the next natural weekly boundary, up to a week away.
+
+Fixed with two additions: (1) `runBackfillSweep()`, run alongside the
+existing hourly staleness check - diffs the catalog against
+`priceHistory` and sweeps only genuinely missing slugs, without touching
+the weekly timer; (2) `POST /api/refresh-prices` + a frontend "Update
+Prices" button for a user who wants a full resweep on demand rather than
+waiting on either the backfill or the weekly cadence.
+
+- No launcher rebuild needed — server/frontend-only change.
+- Verified via scratch-port curl + a real browser (Playwright): a restart
+  with 377 missing weapon-Prime slugs triggered an automatic backfill
+  that filled all of them without advancing `lastRefreshCompletedAt`;
+  the manual endpoint returned 409 while a sweep was running, 202
+  otherwise; the button correctly showed "Updating Prices…" (disabled)
+  during a sweep, including on page load when one was already running.
+- See `DEVLOG.md` under "Pricing"; `BUGS.md` row 2026-09-20 (Pricing).
+
 ## 2026-09-20 — Weapon Prime parts/sets added
 
 Prime Warframe parts were the only Prime support until now (README/BUGS.md/

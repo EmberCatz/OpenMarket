@@ -76,6 +76,7 @@ const eraFilterEl = document.getElementById("era-filter");
 const legendaryBtnEl = document.getElementById("rarity-legendary-btn");
 const iconPreviewEl = document.getElementById("icon-preview");
 const iconPreviewImgEl = document.getElementById("icon-preview-img");
+const refreshPricesBtn = document.getElementById("refresh-prices-btn");
 
 let allItems = [];
 let typeFilter = "all";
@@ -116,6 +117,74 @@ async function loadItems() {
         setStatus(`Failed to load items: ${err.message}`);
     }
 }
+
+// "Update Prices" button - forces a full resweep instead of waiting for
+// the automatic weekly one (see server/src/priceCache.ts). A brand-new
+// item (e.g. freshly added Prime parts) gets backfilled automatically
+// within the hour regardless - this button is for a user who wants
+// genuinely current numbers across the board right now. The sweep itself
+// takes several minutes server-side and runs in the background, so this
+// just starts it and polls /api/status for progress/completion rather
+// than waiting on the POST itself.
+let refreshPollTimer = null;
+
+function setRefreshButtonState(inProgress) {
+    refreshPricesBtn.disabled = inProgress;
+    refreshPricesBtn.textContent = inProgress ? "Updating Prices…" : "Update Prices";
+}
+
+async function pollRefreshStatus() {
+    try {
+        const status = await fetchJsonWithRetry("/api/status");
+        if (status.database.refreshInProgress) {
+            setRefreshButtonState(true);
+            return;
+        }
+    } catch {
+        // A transient /api/status failure shouldn't get the button stuck
+        // showing "Updating..." forever - fall through and stop polling,
+        // same as if the refresh had finished.
+    }
+    setRefreshButtonState(false);
+    clearInterval(refreshPollTimer);
+    refreshPollTimer = null;
+}
+
+function startPollingRefreshStatus() {
+    if (refreshPollTimer !== null) return;
+    setRefreshButtonState(true);
+    refreshPollTimer = setInterval(pollRefreshStatus, 5000);
+}
+
+refreshPricesBtn.addEventListener("click", async () => {
+    setRefreshButtonState(true);
+    try {
+        const res = await fetch("/api/refresh-prices", { method: "POST" });
+        if (res.status === 409) {
+            toast("A price refresh is already running.", true);
+            startPollingRefreshStatus();
+            return;
+        }
+        if (!res.ok) throw new Error((await res.json()).error || res.statusText);
+        toast("Price refresh started - this takes several minutes.", true);
+        startPollingRefreshStatus();
+    } catch (err) {
+        toast(`Failed to start price refresh: ${err.message}`, false);
+        setRefreshButtonState(false);
+    }
+});
+
+// Reflects a refresh already in progress from before this page load
+// (e.g. the page was reloaded mid-sweep, or another browser tab started
+// one) rather than only ever reacting to this tab's own button click.
+(async () => {
+    try {
+        const status = await fetchJsonWithRetry("/api/status");
+        if (status.database.refreshInProgress) startPollingRefreshStatus();
+    } catch {
+        // Best-effort only - the button just stays in its default state.
+    }
+})();
 
 function matchesTypeFilter(item) {
     if (typeFilter === "all") return true;

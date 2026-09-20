@@ -132,6 +132,13 @@ main {
     margin-bottom: 8px;
 }
 
+.btn-refresh-prices {
+    margin-left: auto;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+}
+
 .status {
     color: var(--muted);
     font-size: 0.85rem;

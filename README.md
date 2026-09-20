@@ -41,7 +41,10 @@ stocked with real market prices, not an actual trading system.
 - **Mods, Arcanes, Relics, and Prime Warframe & Weapon parts/sets** — buy
   and sell at any rank (mods/arcanes) or refinement (relics).
 - **Real prices**, refreshed weekly from warframe.market's historical
-  order data — not made up, not live-fetched on every click.
+  order data — not made up, not live-fetched on every click. Newly-added
+  items get backfilled automatically within the hour instead of waiting
+  for the next weekly sweep, and an "Update Prices" button forces a full
+  resweep on demand.
 - **Live owned counts**, synced from your actual SpaceNinjaServer
   inventory, so Sell auto-disables on things you don't have.
 - **Sort and filter** by name, type, price, rarity, relic era, or owned

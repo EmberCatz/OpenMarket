@@ -129,6 +129,41 @@ startup in the background without blocking the app, so browsing works
 immediately, just without prices for anything the sweep hasn't reached
 yet.
 
+**Backfill for newly-added items, added 2026-09-20.** The weekly sweep is
+purely time-gated (`lastRefreshCompletedAt` + 7 days) — a catalog change
+between sweeps (new Prime parts/sets added to this app, or DE shipping
+new tradeable items) previously meant a brand-new slug had literally no
+price entry until the next natural weekly boundary, up to a week away,
+since a real non-stale sweep already in place meant the timer wouldn't
+re-fire early. Reported the same day the 87 weapon Prime sets were added.
+Fixed with a separate `runBackfillSweep()`, run alongside the existing
+hourly staleness check: it diffs the current catalog's slugs against
+what's already in `priceHistory` and sweeps ONLY the missing ones, at the
+same rate-limit-safe sequential pace as a full sweep (never runs
+concurrently with one - shares `refreshInProgress`). Deliberately does
+NOT advance `lastRefreshCompletedAt`, since that field gates the full
+sweep specifically (which also refreshes existing slugs' potentially
+stale prices) and a backfill run must never delay that. Verified live:
+restarting with 377 newly-classified weapon Prime slugs missing triggered
+an automatic backfill that filled all 377 in the background without
+touching the full-sweep timer.
+
+**Manual "Update Prices" button, same day.** `POST /api/refresh-prices`
+(`triggerManualRefresh()`) starts a full resweep on demand for a user who
+wants genuinely current numbers everywhere right now, not just gap-filled
+new items - returns `202 {started: true}` immediately (the sweep itself
+still takes several minutes and runs in the background, same as the
+automatic one) or `409` if one's already running. The frontend polls the
+existing `GET /api/status` `database.refreshInProgress` field rather than
+needing a new status endpoint - the button shows "Updating Prices…"
+(disabled) for the duration, including on page load if a sweep was
+already in progress from another trigger. Verified via curl (409 while a
+sweep was running, 202 once it finished) and in a real browser
+(Playwright): button state correctly reflected an in-progress sweep on
+load, and Boltor Prime Set/parts and Akmagnus Prime Set (the
+duplicate-parts case) all showed real resolved prices once their backfill
+completed.
+
 If a specific rank or refinement has no trade history in the last 90 days
 at all, **ladder interpolation** linearly interpolates between whichever
 other rungs of the same item do have history, or clamps to the nearest
