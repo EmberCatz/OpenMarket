@@ -15,6 +15,24 @@ shipped (e.g. `v1.1.1.md`) and create a fresh `unreleased.md` — see
 
 ---
 
+## 2026-09-23 — Fix PayloadTooLargeError on inventory-snapshot POST
+
+`express.json()` had no explicit `limit`, so it fell back to Express's
+built-in 100kb cap. `POST /internal/inventory-snapshot` — the full
+inventory dump `Market Sync.pluto` reports every poll cycle — grew past
+that once Mods, Arcanes, Relics, and Prime Warframe/Weapon parts and
+sets were all added, and started failing with
+`PayloadTooLargeError: request entity too large` before reaching any
+route handler. Set to `10mb`.
+
+- **No launcher rebuild needed** — backend-only change, takes effect on
+  a plain server restart.
+- Verified with a scratch-port curl (200KB test body): `413` before the
+  fix, `400` route-level validation after (i.e. it now reaches the
+  handler). [`84b7f17`](https://github.com/EmberCatz/OpenMarket/commit/84b7f17)
+- See `DEVLOG.md` under "Architecture"; `BUGS.md` row 2026-09-23
+  (Backend).
+
 ## 2026-09-20 — Fix orphaned Linux server process on non-graceful close
 
 Reported by a real Linux tester: closing the launcher without first
