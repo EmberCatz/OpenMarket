@@ -7,7 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.MARKET_EMULATOR_PORT ? Number(process.env.MARKET_EMULATOR_PORT) : 7890;
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 app.use(express.static(path.join(__dirname, "../../public")));
 app.use("/api", apiRouter);
 app.use("/internal", internalRouter);

@@ -94,6 +94,17 @@ mapping/pricing/order logic here could realistically be adapted into a
 page inside SpaceNinjaServer's own WebUI by someone who wanted that,
 rather than needing a rewrite.
 
+**`express.json()` body size limit (fixed 2026-09-23)**: mounted with no
+explicit `limit`, so it silently fell back to Express's built-in 100kb
+cap. `POST /internal/inventory-snapshot` — the full inventory dump
+`Market Sync.pluto` reports every poll cycle — grew past that once Mods,
+Arcanes, Relics, and Prime Warframe/Weapon parts and sets were all added
+to what gets tracked, and started failing with
+`PayloadTooLargeError: request entity too large` before reaching any
+route handler. Set to `10mb`, verified with a scratch-port curl (200KB
+test body: `413` before, `400` route-level validation after — i.e. it
+now actually reaches the handler).
+
 ## Pricing
 
 Prices are **90-day historical medians**, not live order-book snapshots.
