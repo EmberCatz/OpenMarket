@@ -14,3 +14,12 @@ shipped (e.g. `v1.2.1.md`) and create a fresh `unreleased.md` — see
 `internal/patch-notes/` for the full history once more than one exists.
 
 ---
+
+## 2026-09-24 — Logged a real Linux (Steam Deck) blank-screen report
+
+No code change yet - logged a user report (blank webview on launch, AppImage
+window opens fine otherwise) in `BUGS.md` under "Known / open" with a working
+hypothesis (WebKitGTK DMA-BUF renderer bug on Steam Deck's AMD/Mesa combo) and
+a diagnostic env var to test. Will follow up with an actual fix (likely baking
+the env var into the AppImage's launch wrapper) once the reporter confirms the
+cause.
