@@ -10,12 +10,22 @@ on:
   push:
     tags:
       - "v*"
+  # Lets the Linux AppImage patch below (fix-linux-appimage) be re-run
+  # against an already-published release without cutting a new tag - e.g.
+  # to verify the patch job itself works before trusting it on a real
+  # release. Leave "tag" blank when this fires from a normal tag push.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to re-patch the Linux AppImage for (e.g. v1.2.0). Leave blank when triggered by a tag push."
+        required: false
 
 permissions:
   contents: write
 
 jobs:
   release:
+    if: github.event_name == 'push'
     strategy:
       fail-fast: false
       matrix:
@@ -86,3 +96,107 @@ jobs:
           gh release upload ${{ github.ref_name }} $zipName --repo ${{ github.repository }} --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Steam Deck fix (see BUGS.md, 2026-09-24 report): the AppImage tauri-
+  # action just built bundles its own libwayland-client/cursor/server,
+  # which conflict with SteamOS's own Mesa/EGL stack and produce a blank
+  # webview / "Could not create default EGL display: EGL_BAD_PARAMETER".
+  # A real Steam Deck user confirmed manually (extract, remove those three
+  # libs, run ./AppRun directly) that this fixes it - this job automates
+  # that into the release itself instead of requiring every Linux user to
+  # do it by hand.
+  #
+  # Runs as its own job, after BOTH matrix builds finish (needs: release),
+  # specifically to avoid a race: tauri-action merges each platform's
+  # entry into the same shared latest.json release asset, and if this job
+  # touched latest.json while the other matrix job was still mid-upload,
+  # one of them could clobber the other's platform entry.
+  fix-linux-appimage:
+    name: Patch AppImage for Steam Deck (remove conflicting bundled libs)
+    needs: release
+    # needs: release is normally skipped (not run) on a manual dispatch,
+    # since the release job's own `if` only allows a tag push - `always()`
+    # keeps this job eligible anyway; the boolean after it is what actually
+    # gates whether it proceeds.
+    if: always() && (github.event_name == 'workflow_dispatch' || needs.release.result == 'success')
+    runs-on: ubuntu-22.04
+    env:
+      TARGET_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Only needed so `npx tauri signer sign` below resolves to the
+      # project's own @tauri-apps/cli devDependency, same version
+      # tauri-action itself used to sign every other artifact in this
+      # release - not building anything here.
+      - name: Install launcher npm dependencies (for the tauri CLI's signer)
+        working-directory: launcher
+        run: npm install
+
+      - name: Download the release's current AppImage and latest.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download "$TARGET_TAG" --repo ${{ github.repository }} \
+            --pattern "*.AppImage" --pattern "latest.json" --clobber
+
+      - name: Remove the bundled libwayland-* libs and repack
+        run: |
+          set -euo pipefail
+          APPIMAGE=$(ls *.AppImage)
+          chmod +x "$APPIMAGE"
+
+          # --appimage-extract is the FUSE-less extraction mode every
+          # AppImage supports natively - used throughout this step
+          # specifically so nothing here needs libfuse on the runner.
+          "$APPIMAGE" --appimage-extract
+          mv squashfs-root launcher-root
+          rm -f launcher-root/usr/lib/libwayland-client.so.0 \
+                launcher-root/usr/lib/libwayland-cursor.so.0 \
+                launcher-root/usr/lib/libwayland-server.so.0
+
+          curl -fL -o appimagetool.AppImage \
+            "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x appimagetool.AppImage
+          ./appimagetool.AppImage --appimage-extract
+          mv squashfs-root appimagetool-root
+
+          rm -f "$APPIMAGE"
+          ARCH=x86_64 ./appimagetool-root/AppRun --no-appstream launcher-root "$APPIMAGE"
+          chmod +x "$APPIMAGE"
+
+      # The AppImage tauri-action shipped was already signed, but that
+      # signature is over the ORIGINAL bytes - repacking without libwayland
+      # produces a different file, so the old signature no longer matches
+      # and the updater would reject every future update on Linux if this
+      # step were skipped.
+      - name: Re-sign the patched AppImage
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          APPIMAGE=$(ls *.AppImage)
+          (cd launcher && npx tauri signer sign -k "$TAURI_SIGNING_PRIVATE_KEY" -p "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" "$GITHUB_WORKSPACE/$APPIMAGE")
+
+      # latest.json carries two entries for Linux (linux-x86_64 and
+      # linux-x86_64-appimage) - both point at this same file, so both
+      # need the new signature or the updater rejects the mismatched one.
+      - name: Upload the patched AppImage and fix up latest.json's signature
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          APPIMAGE=$(ls *.AppImage)
+          gh release upload "$TARGET_TAG" "$APPIMAGE" "$APPIMAGE.sig" --repo ${{ github.repository }} --clobber
+
+          NEW_SIG=$(cat "$APPIMAGE.sig")
+          jq --arg sig "$NEW_SIG" \
+             '.platforms["linux-x86_64"].signature = $sig | .platforms["linux-x86_64-appimage"].signature = $sig' \
+             latest.json > latest.patched.json
+          mv latest.patched.json latest.json
+          gh release upload "$TARGET_TAG" latest.json --repo ${{ github.repository }} --clobber

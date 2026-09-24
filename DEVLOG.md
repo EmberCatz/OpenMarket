@@ -519,6 +519,62 @@ available. Update packages are signed — CI needs
 `TAURI_SIGNING_PRIVATE_KEY`/`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` secrets
 configured on the repo, or the release step fails.
 
+### Steam Deck AppImage fix (added 2026-09-24)
+
+A real user report (see BUGS.md) turned into a confirmed root cause after
+they extracted and inspected the AppImage themselves: `tauri-action`'s
+AppImage bundles its own `libwayland-client.so.0`/`libwayland-cursor.so.0`/
+`libwayland-server.so.0`, which conflict with SteamOS's own Mesa/EGL stack
+(`ldd` showed the mismatch - bundled Wayland libs against system
+`libEGL`/`libGL`/`libGBM`). The result is either a blank webview or an
+outright `Could not create default EGL display: EGL_BAD_PARAMETER` crash.
+Removing those three libs and running `./AppRun` directly fixed it, tested
+manually before this was automated.
+
+An earlier guess (WebKitGTK's DMA-BUF renderer failing on Steam Deck's
+GPU, fixable with `WEBKIT_DISABLE_DMABUF_RENDERER=1`) was wrong - noted
+here since it was briefly the recorded hypothesis in BUGS.md/patch-notes
+before the real cause was confirmed.
+
+`release.yml` gained a `fix-linux-appimage` job that runs after both
+platform builds finish (`needs: release`), specifically to avoid a race:
+`tauri-action` merges each platform's entry into one shared `latest.json`
+release asset, and if this job touched `latest.json` while the other
+matrix job was still mid-upload, one could clobber the other's platform
+entry. The job downloads the just-published AppImage, extracts it
+(`--appimage-extract` - no FUSE needed, works fine on a bare CI runner),
+removes the three libs, repacks with `appimagetool` (also run via
+`--appimage-extract` + its own `AppRun`, same FUSE-avoidance trick), then
+**re-signs the repacked file** with the same `TAURI_SIGNING_PRIVATE_KEY`
+secret `tauri-action` already used. This re-sign step is load-bearing, not
+optional: the original signature only covers the original bytes, and
+shipping the patched AppImage without re-signing would silently break the
+Linux auto-updater for every future update, since the updater verifies the
+signature against the file it's about to install. `latest.json` carries
+**two** Linux entries (`linux-x86_64` and `linux-x86_64-appimage`, both
+pointing at the same file - confirmed by downloading the real v1.2.0
+release's `latest.json` and inspecting it rather than guessing the key
+name), so both get patched to the new signature via `jq`.
+
+Also added a `workflow_dispatch` trigger with a `tag` input, specifically
+so this job can be re-run against an already-published release (e.g.
+`v1.2.0`) to verify it actually works before trusting it on a real future
+release - the `release` build job itself is gated to `if:
+github.event_name == 'push'` so a manual dispatch never accidentally
+re-triggers a full rebuild.
+
+**Untested in real CI as of this writing.** YAML syntax was validated
+(`python -c "import yaml; yaml.safe_load(...)"`) and the `needs`/`if`/
+matrix interaction was traced through by hand, but `actionlint` wasn't
+available to check GitHub-Actions-specific semantics beyond plain YAML
+syntax, and none of `--appimage-extract`, `appimagetool`, or the signer
+re-sign flow has actually been run. This modifies a live, already-
+published release's assets when triggered against an existing tag, so the
+first run is worth watching closely and verifying by hand (does the
+re-uploaded AppImage actually launch on a real Steam Deck, does the
+updater still accept the patched `latest.json`) rather than trusting it
+blind.
+
 ## Confirmed HTTP mechanics
 
 Read directly from SpaceNinjaServer's source, not guessed:
