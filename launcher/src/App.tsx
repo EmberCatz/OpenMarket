@@ -498,7 +498,14 @@ export default function App() {
                             >
                                 Open in Browser
                             </button>
+                            <button onClick={handleCheckForIssues} disabled={diagChecking}>
+                                {diagChecking ? "Checking..." : "Check for Issues"}
+                            </button>
                         </div>
+
+                        {diagResult && (
+                            <div className={`banner ${diagResult.ok ? "ok" : "warn"}`}>{diagResult.message}</div>
+                        )}
 
                         {status && (
                             <div className="status-detail">
@@ -525,14 +532,6 @@ export default function App() {
                             </button>
                         </div>
                         <h3>Troubleshooting</h3>
-                        <div className="help-links">
-                            <button onClick={handleCheckForIssues} disabled={diagChecking}>
-                                {diagChecking ? "Checking..." : "Check for Issues"}
-                            </button>
-                        </div>
-                        {diagResult && (
-                            <div className={`banner ${diagResult.ok ? "ok" : "warn"}`}>{diagResult.message}</div>
-                        )}
                         <ul>
                             <li><strong>Server stuck on "Starting...":</strong> check the terminal panel below for a stack trace. If the button still says "Install" instead of "Launch App", run that first.</li>
                             <li><strong>Database stays "Disconnected":</strong> `price-history.seed.json` failed to load - check it exists in the repo's `server/` folder.</li>
