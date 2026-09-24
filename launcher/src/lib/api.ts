@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 // unrecognized version.
 export interface ServerStatus {
     schemaVersion: number;
+    serverVersion?: string;
     server: { ok: boolean; uptimeSeconds: number };
     database: {
         state: "empty" | "seeded" | "live";

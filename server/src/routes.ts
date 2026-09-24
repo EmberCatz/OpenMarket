@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { readFileSync } from "node:fs";
 import { getItems, findItemByGameRef, findItemBySlug, resolveSellGameRef, RELIC_REFINEMENT_SUFFIXES } from "./itemsCache.js";
 import { getPrice, getPriceCacheStatus, triggerManualRefresh } from "./priceCache.js";
 import { enqueueOrder, popPendingOrder, reportOrderResult, getOrder } from "./orderQueue.js";
@@ -17,6 +18,15 @@ export const apiRouter = Router();
 export const internalRouter = Router();
 
 const SERVER_STARTED_AT = Date.now();
+
+// Read once at startup, not per-request - this is what lets the launcher's
+// "Check for Issues" diagnostic tell a genuinely-updated server (git pull
+// done AND process restarted) apart from a stale checkout or a stale
+// still-running process, neither of which git alone can detect from the
+// launcher side. Bump this version (server/package.json) in lockstep with
+// launcher/package.json on every release - see the release walkthrough in
+// ../CLAUDE.md.
+const SERVER_VERSION: string = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")).version;
 
 // Set whenever Market Sync.pluto polls /internal/pending-order (see
 // below) - the ONLY signal this server has that the script is alive,
@@ -37,6 +47,7 @@ const PLUTO_STALE_MS = 8000;
 apiRouter.get("/status", (_req, res) => {
     res.json({
         schemaVersion: 1,
+        serverVersion: SERVER_VERSION,
         server: { ok: true, uptimeSeconds: Math.floor((Date.now() - SERVER_STARTED_AT) / 1000) },
         database: getPriceCacheStatus(),
         pluto: {

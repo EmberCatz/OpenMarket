@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { openUrl, openPath } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
+import { getVersion } from "@tauri-apps/api/app";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import "./App.css";
@@ -55,6 +56,8 @@ export default function App() {
     const [nodeStatus, setNodeStatus] = useState<NodeStatus | null>(null);
     const [availableUpdate, setAvailableUpdate] = useState<Update | null>(null);
     const [updating, setUpdating] = useState(false);
+    const [diagChecking, setDiagChecking] = useState(false);
+    const [diagResult, setDiagResult] = useState<{ ok: boolean; message: string } | null>(null);
 
     const autoOpenPending = useRef(false);
     const logEndRef = useRef<HTMLDivElement>(null);
@@ -108,6 +111,44 @@ export default function App() {
         } catch (e) {
             setUpdating(false);
             setError(`Update failed: ${String(e)}`);
+        }
+    }
+
+    // --- "Check for Issues": compares the running server's reported
+    // serverVersion (server/package.json, read at server startup - see
+    // routes.ts) against this launcher's own build version. The two are
+    // bumped together on every release (see ../CLAUDE.md's release
+    // walkthrough), so a mismatch means the server folder either wasn't
+    // git pull'd or wasn't restarted after a pull - the exact "stale
+    // server code" support issue that otherwise takes a manual
+    // `git log -1 --format=%H src/index.ts` walkthrough to diagnose. ---
+    async function handleCheckForIssues() {
+        setDiagChecking(true);
+        setDiagResult(null);
+        try {
+            const launcherVersion = await getVersion();
+            const s = await fetchServerStatus(config.port);
+            if (!s.serverVersion) {
+                setDiagResult({
+                    ok: false,
+                    message:
+                        "Can't confirm - this server build predates version reporting, which itself means it's out of date. Run \"git pull\" in your server folder, then Stop and Launch again."
+                });
+            } else if (s.serverVersion !== launcherVersion) {
+                setDiagResult({
+                    ok: false,
+                    message: `Server code is out of date (server reports v${s.serverVersion}, this launcher is v${launcherVersion}). Run "git pull" in your server folder, then Stop and Launch again - updating this app alone won't fix it.`
+                });
+            } else {
+                setDiagResult({ ok: true, message: `Server code is up to date (v${s.serverVersion}).` });
+            }
+        } catch {
+            setDiagResult({
+                ok: false,
+                message: "Couldn't reach the server - make sure it's running (click Launch on the Dashboard tab first)."
+            });
+        } finally {
+            setDiagChecking(false);
         }
     }
 
@@ -484,6 +525,14 @@ export default function App() {
                             </button>
                         </div>
                         <h3>Troubleshooting</h3>
+                        <div className="help-links">
+                            <button onClick={handleCheckForIssues} disabled={diagChecking}>
+                                {diagChecking ? "Checking..." : "Check for Issues"}
+                            </button>
+                        </div>
+                        {diagResult && (
+                            <div className={`banner ${diagResult.ok ? "ok" : "warn"}`}>{diagResult.message}</div>
+                        )}
                         <ul>
                             <li><strong>Server stuck on "Starting...":</strong> check the terminal panel below for a stack trace. If the button still says "Install" instead of "Launch App", run that first.</li>
                             <li><strong>Database stays "Disconnected":</strong> `price-history.seed.json` failed to load - check it exists in the repo's `server/` folder.</li>

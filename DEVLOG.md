@@ -455,6 +455,41 @@ genuinely needs a real Linux smoke test (send `SIGTERM` to a running
 launcher, confirm the Node process is actually gone afterward) before or
 soon after it ships.
 
+### "Check for Issues" diagnostic (added 2026-09-24)
+
+Grew out of a real support back-and-forth: a user kept hitting the
+`PayloadTooLargeError` from the v1.1.1 hotfix (see BUGS.md) after the
+release shipped, and diagnosing it required walking him through
+`git log -1 --format=%H server/src/index.ts` by hand to check whether his
+`server/` checkout was actually up to date — slow, and easy to botch on
+the user's end (he did, twice, via copy-paste mangling).
+
+Replaced that with a real button (Help tab → Troubleshooting → "Check for
+Issues"). `GET /api/status` now reports `serverVersion`, read once at
+server startup from `server/package.json`'s own `version` field (see
+routes.ts). The launcher compares that against its own build version
+(`@tauri-apps/api/app`'s `getVersion()`) — the two are bumped together on
+every release, same as the three files in the version-bump step below, so
+`server/package.json` is now a **fourth** file to keep in sync on every
+release, not just the launcher's three.
+
+A mismatch (or a missing `serverVersion` entirely, which just means the
+running server predates this feature and is therefore *definitely* out of
+date) surfaces a plain-language fix: `git pull` in the server folder, then
+Stop/Launch again — specifically calling out that updating the launcher
+app alone doesn't touch `server/`, the exact misunderstanding that caused
+the original confusion. This catches both failure modes a manual git check
+misses: a checkout that was pulled but never restarted, and a checkout
+that was never pulled at all.
+
+Verified: `cargo check` and `tsc --noEmit` both clean, the ACL permission
+(`core:app:default`, added to `capabilities/default.json` for
+`getVersion()`) resolves without a schema error (would fail `cargo check`
+otherwise), and a scratch-port curl confirms `/api/status` now returns
+`serverVersion`. **Not verified: an actual click-through in a running
+launcher window** — no GUI automation available for a native app from
+here, so this still wants a real manual test before being trusted fully.
+
 ### Releases and auto-update
 
 Tagged releases (`v*`) build via GitHub Actions
