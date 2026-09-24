@@ -15,11 +15,18 @@ shipped (e.g. `v1.2.1.md`) and create a fresh `unreleased.md` — see
 
 ---
 
-## 2026-09-24 — Logged a real Linux (Steam Deck) blank-screen report
+## 2026-09-24 — Confirmed root cause of the Linux (Steam Deck) blank-screen bug
 
-No code change yet - logged a user report (blank webview on launch, AppImage
-window opens fine otherwise) in `BUGS.md` under "Known / open" with a working
-hypothesis (WebKitGTK DMA-BUF renderer bug on Steam Deck's AMD/Mesa combo) and
-a diagnostic env var to test. Will follow up with an actual fix (likely baking
-the env var into the AppImage's launch wrapper) once the reporter confirms the
-cause.
+No code fix yet, but the real cause is now confirmed (see `BUGS.md`): the
+AppImage bundles its own `libwayland-*` libraries, which conflict with
+SteamOS's own Mesa/EGL stack (`EGL_BAD_PARAMETER`). An earlier guess (a
+WebKitGTK DMA-BUF renderer bug, fixable with an env var) was wrong - noting
+that here since it was logged as the working hypothesis in this same file
+yesterday.
+
+Confirmed-working manual fix: extract the AppImage, remove the bundled
+`libwayland-client.so.0`/`libwayland-cursor.so.0`/`libwayland-server.so.0`/
+`libwayland-egl.so.1`, launch `./AppRun` directly. Real fix still needed at
+the build step (exclude these libs from the AppImage bundle in
+`release.yml`, or a custom `AppRun` that removes them before exec) - not
+yet implemented.
