@@ -164,6 +164,7 @@ jobs:
           chmod +x appimagetool.AppImage
           ./appimagetool.AppImage --appimage-extract
           mv squashfs-root appimagetool-root
+          rm -f appimagetool.AppImage
 
           rm -f "$APPIMAGE"
           ARCH=x86_64 ./appimagetool-root/AppRun --no-appstream launcher-root "$APPIMAGE"
