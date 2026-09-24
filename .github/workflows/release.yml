@@ -153,7 +153,7 @@ jobs:
           # --appimage-extract is the FUSE-less extraction mode every
           # AppImage supports natively - used throughout this step
           # specifically so nothing here needs libfuse on the runner.
-          "$APPIMAGE" --appimage-extract
+          "./$APPIMAGE" --appimage-extract
           mv squashfs-root launcher-root
           rm -f launcher-root/usr/lib/libwayland-client.so.0 \
                 launcher-root/usr/lib/libwayland-cursor.so.0 \
