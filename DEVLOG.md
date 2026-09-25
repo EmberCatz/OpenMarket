@@ -270,6 +270,27 @@ snapshot, not a code issue), Mods 95.7%. Individual Prime part blueprints
 always show the placeholder - this matches real in-game behavior (a part
 blueprint shows a generic icon, not unique art), not a gap to chase.
 
+**Opportunistic browse.wf network fallback, same day.** Local extraction
+alone only ever covers what's already been extracted, capped by the local
+Public Export snapshot - a fresh install or an item too new for the local
+dump would show a placeholder even while online. `itemsCache.ts`'s
+`iconUrl()` now falls back to `https://browse.wf<icon path>` (a
+long-established public mirror of Public Export's own asset paths, see
+`docs/public-export-reference.md` §5 in the parent OPENWF _ Modding repo)
+for anything not yet locally extracted, using the exact same path already
+resolved for local extraction - no extra data source or API needed, just
+a different host. This IS a live network dependency again for whatever
+local extraction hasn't reached, but it degrades gracefully: the
+frontend's `<img>` `onerror` handler (`setIconSrc()` in `app.js`) swaps to
+the placeholder if browse.wf is unreachable, so it never blocks or breaks
+offline use - it just means fewer items get real art while offline than
+while online, same trade-off a hybrid local+network icon strategy always
+has. Verified live: with `icon-cache/` empty and no local extraction
+configured at all, every Prime set/weapon/mod/arcane row still rendered
+real art purely via browse.wf; a real 404 on one item (a very recently
+added Warframe browse.wf doesn't have yet either) correctly fell back to
+the placeholder instead of a broken image.
+
 **Linux/Steam Deck support is source-verified only, unverified on real
 hardware** - this repo's dev environment has no Linux machine to test on.
 A `Warframe-Exporter-CLI.AppImage` build is vendored for Linux (defensive

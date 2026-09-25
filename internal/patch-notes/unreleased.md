@@ -15,6 +15,24 @@ shipped (e.g. `v1.2.1.md`) and create a fresh `unreleased.md` — see
 
 ---
 
+## 2026-09-25 — Opportunistic browse.wf fallback for icons not yet locally extracted
+
+Follow-up to the offline data model below, same day. Local extraction
+alone is capped by the local Public Export snapshot + whatever's been
+extracted so far - `itemsCache.ts`'s `iconUrl()` now falls back to
+`https://browse.wf<icon path>` for anything not yet locally extracted,
+reusing the exact same path already resolved for local extraction (no new
+data source). Frontend's `<img onerror>` (`setIconSrc()`) falls back to
+the placeholder if that fails too (offline, or browse.wf itself down) -
+never blocks or breaks offline use, just means fewer real icons while
+offline than while online. Verified live: emptied `icon-cache/`, confirmed
+every row still showed real art via browse.wf alone, and a real 404 (an
+item browse.wf doesn't have either) correctly fell back to the
+placeholder instead of a broken image. See `DEVLOG.md`'s "Offline / local
+data model" section.
+
+No version bump (regular `master` commit).
+
 ## 2026-09-25 — Fully offline/local-only data model: catalog + prices + icons, driven by real Discord feedback
 
 Three real reports: no-internet = hard error, prices feel slow (kept

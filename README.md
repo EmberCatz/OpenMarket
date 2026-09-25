@@ -46,10 +46,11 @@ stocked with real market prices, not an actual trading system.
   everything on demand, whenever you have a connection. No internet, no
   problem in the meantime — this was built with Steam Deck/offline play
   specifically in mind.
-- **Real icons**, extracted locally from your own Warframe install — no
-  network dependency for art either. Optional one-time setup (see
-  [DEVLOG.md](DEVLOG.md#offline--local-data-model)); items without it set
-  up just show a placeholder instead of a broken image.
+- **Real icons**, extracted locally from your own Warframe install (fully
+  offline, optional one-time setup — see
+  [DEVLOG.md](DEVLOG.md#offline--local-data-model)), with an opportunistic
+  network fallback for anything not yet extracted while you're online.
+  Falls back to a placeholder instead of a broken image either way.
 - **Live owned counts**, synced from your actual SpaceNinjaServer
   inventory, so Sell auto-disables on things you don't have.
 - **Sort and filter** by name, type, price, rarity, relic era, or owned

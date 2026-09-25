@@ -1,5 +1,20 @@
 const ITEMS_PER_PAGE = 40;
 
+// An item.icon can be either a local /icon-cache/... URL (always works)
+// or an opportunistic browse.wf network fallback (server/src/itemsCache.ts's
+// iconUrl() - only used when local extraction hasn't reached that item
+// yet). The network case can fail (offline, or browse.wf itself down) -
+// falling back to this placeholder on <img> error keeps that failure from
+// ever showing a browser's default broken-image icon.
+const ICON_PLACEHOLDER = "/assets/no-icon.svg";
+function setIconSrc(img, src) {
+    img.onerror = () => {
+        img.onerror = null;
+        img.src = ICON_PLACEHOLDER;
+    };
+    img.src = src;
+}
+
 // Firing all of a page's price/owned-count lookups at once used to trip
 // warframe.market's rate limiting on broad searches (e.g. "meso" ->
 // ~40 simultaneous /api/price calls) - stagger them through a small
@@ -729,7 +744,7 @@ const GENERIC_COMPONENT_SLOTS = new Set([
 function attachIconPreview(icon, item) {
     if (!item.icon) return;
     icon.addEventListener("mouseenter", () => {
-        iconPreviewImgEl.src = item.icon;
+        setIconSrc(iconPreviewImgEl, item.icon);
         iconPreviewImgEl.alt = item.name;
         iconPreviewEl.hidden = false;
     });
@@ -781,7 +796,7 @@ function renderRow(item) {
     const stepperPlus = row.querySelector(".rank-plus");
     const ownedEl = row.querySelector(".owned-count");
 
-    if (item.icon) icon.src = item.icon;
+    if (item.icon) setIconSrc(icon, item.icon);
     icon.alt = item.name;
     name.textContent = item.name;
     applySlotBadge(row, item);

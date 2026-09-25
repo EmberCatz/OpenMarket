@@ -260,21 +260,35 @@ function saveToDisk(): void {
     }
 }
 
-// Local-only, no network fallback - warframe.market's own icon hotlink
-// (the previous source here) is both a live-network dependency and, per
-// the user, currently broken outright. Looks up this item's real gameRef
-// in ICON_PATHS (built from Public Export, not warframe.market's own
-// icon field - the `icon` parameter this used to take is gone) and
-// returns a served /icon-cache/... URL only if that file has actually
-// been extracted already (see localIcons.ts) - otherwise null, which the
-// frontend renders as a placeholder. Extraction itself only ever happens
-// via the explicit "Update Data" action (routes.ts), never triggered from
-// here.
+// Local-first, opportunistic-network-fallback (added 2026-09-25). Looks
+// up this item's real gameRef in ICON_PATHS (built from Public Export,
+// not warframe.market's own icon field - the `icon` parameter this used
+// to take is gone entirely; that hotlink is both a live-network
+// dependency and, per the user, currently broken outright).
+//
+// Local extraction (see localIcons.ts) is preferred and is the only
+// option that works fully offline - but it's capped by what's actually
+// been extracted, which itself is capped by what the local Public Export
+// snapshot and the user's own Cache.Windows contain (a handful of items
+// are simply too new for the local dump, or sit in a folder deliberately
+// excluded from bulk extraction - see localIcons.ts's UNSAFE_BROAD_ROOTS).
+// For anything not yet locally extracted, fall back to browse.wf - a
+// long-established public mirror that serves Public Export's own icon
+// paths directly (confirmed in docs/public-export-reference.md §5), using
+// the EXACT SAME path already resolved above, so this needs no extra data
+// source or API call, just a different URL host. This is a real,
+// live-network dependency again for whatever local extraction hasn't
+// reached - but it degrades gracefully: the frontend's <img onerror>
+// falls back to the placeholder if browse.wf is unreachable (offline, or
+// browse.wf itself down), so this never blocks or breaks offline use,
+// it just means slightly fewer items get real art while offline than
+// while online. Extraction itself still only ever happens via the
+// explicit "Update Data" action (routes.ts), never triggered from here.
 function iconUrl(gameRef: string): string | null {
     const iconPath = getIconPathForGameRef(gameRef);
     if (!iconPath) return null;
     const rel = getLocalIconPath(iconPath);
-    return rel ? `/icon-cache/${rel}` : null;
+    return rel ? `/icon-cache/${rel}` : `https://browse.wf${iconPath}`;
 }
 
 function classify(item: WfmItemEntry): MarketItem | null {
