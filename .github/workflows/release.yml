@@ -68,10 +68,20 @@ jobs:
 
             - **Windows, recommended** — `*_x64-setup.exe`: normal installer, updates itself automatically.
             - **Windows, portable** — `*-windows-portable.zip`: extract anywhere, run `launcher.exe` directly, no install. Does **not** auto-update — check back here for new versions.
-            - **Linux** — `*.AppImage`: `chmod +x` it, then run. Updates itself automatically.
+            - **Linux** — `*.AppImage`: `chmod +x` it, then run. Updates itself automatically. **See the warning below before using this on Steam Deck.**
             - `.sig` files and `latest.json` are for the auto-updater only, not for you to download.
 
             **Requires [Node.js](https://nodejs.org/) 18+** installed separately — the launcher checks on startup and tells you if it's missing.
+
+            ## ⚠️ Linux/Steam Deck: unstable, not recommended yet
+
+            The Linux AppImage currently **does not run on Steam Deck /
+            SteamOS** — the webview opens blank
+            (`EGL_BAD_PARAMETER`, a bundled-library conflict with SteamOS's
+            own Mesa/EGL stack). A fix exists but hasn't been verified on
+            real hardware yet. Other Linux desktops are untested either way.
+            **Windows is the only platform this release actually
+            recommends.** See the repo's `BUGS.md` for details.
 
             Full setup instructions: [README](https://github.com/EmberCatz/OpenMarket#readme)
           # Drafts don't go public or notify watchers until manually

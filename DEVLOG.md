@@ -799,14 +799,17 @@ Read directly from SpaceNinjaServer's source, not guessed:
   the Bootstrapper's `script_log` for actual script health.
 - **No launcher release published yet** — has to be built from source
   until the first tag is pushed.
-- **Linux support is source-verified, not build-verified** as of
-  2026-09-18 — no one has actually run a build on a real Linux machine
-  yet; the first tagged release will be the first real test. As of
-  2026-09-25 this also covers the new local icon extraction's
-  `Warframe-Exporter-CLI.AppImage` path specifically — see "Offline /
-  local data model" above for what's already been done defensively
-  (chmod, FUSE fallback) without being able to confirm it on real
-  hardware.
+- **Linux/Steam Deck is unstable as of v1.3.0 — not recommended.** The
+  Steam Deck blank-screen bug (`EGL_BAD_PARAMETER`, bundled
+  `libwayland-*` conflicting with SteamOS's Mesa/EGL stack — see
+  "Steam Deck AppImage fix" below) has a build-pipeline fix that has
+  never been verified on real hardware. The new local icon extraction's
+  `Warframe-Exporter-CLI.AppImage` path (see "Offline / local data model"
+  above) is similarly unverified on real Linux/Steam Deck hardware, only
+  reasoned through defensively (chmod, FUSE fallback). Shipping this
+  release anyway rather than holding it hostage to hardware neither of us
+  has — Windows is the verified, recommended platform; Linux is
+  source-plausible only until someone tests it for real.
 - **"Peculiar" mods were miscategorized as Arcanes until fixed 2026-09-18.**
   The 4 Peculiar mods (Growth/Bloom/Audience/End) carry BOTH `"mod"` and
   `"arcane_enhancement"` tags simultaneously on warframe.market — the only

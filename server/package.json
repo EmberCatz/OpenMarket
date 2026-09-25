@@ -1,6 +1,6 @@
 {
   "name": "openmarket-server",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "type": "module",
   "description": "Local private-server 'shop' priced off warframe.market's real public order data. See ../README.md.",

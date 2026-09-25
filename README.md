@@ -111,13 +111,21 @@ backend for you instead of a terminal window: one button to install
 dependencies and launch, a status dashboard (server / price database /
 script connection), and a live log view.
 
-Download a release from the [Releases page](../../releases) once one's
-published — Windows has two options: an installer (auto-updates itself)
-or a portable `.zip` (extract anywhere, just run the exe, but you'll
-need to manually grab new versions). Linux ships as an AppImage
-(auto-updates). Either way, you'll need [Node.js](https://nodejs.org/)
-18+ installed — the launcher checks for it and tells you if it's
-missing, but doesn't install it for you.
+Download a release from the [Releases page](../../releases) — Windows
+has two options: an installer (auto-updates itself) or a portable `.zip`
+(extract anywhere, just run the exe, but you'll need to manually grab new
+versions). Either way, you'll need [Node.js](https://nodejs.org/) 18+
+installed — the launcher checks for it and tells you if it's missing,
+but doesn't install it for you.
+
+**Linux/Steam Deck: unstable, not recommended yet.** The Linux AppImage
+build exists and auto-updates like the Windows installer, but it
+currently **does not run on Steam Deck / SteamOS** — the webview opens
+blank (`EGL_BAD_PARAMETER`, a bundled-library conflict with SteamOS's own
+Mesa/EGL stack). A fix exists but hasn't been verified on real hardware
+yet. Non-Steam-Deck Linux desktops may fare better but haven't been
+tested either. See [BUGS.md](BUGS.md) for the gory details — Windows is
+the only platform this release actually recommends.
 
 Or build it yourself:
 
