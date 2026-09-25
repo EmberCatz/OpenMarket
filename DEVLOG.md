@@ -291,15 +291,30 @@ real art purely via browse.wf; a real 404 on one item (a very recently
 added Warframe browse.wf doesn't have yet either) correctly fell back to
 the placeholder instead of a broken image.
 
+**TODO, noted 2026-09-25:** the browse.wf fallback currently re-fetches
+the same icon over the network every time it's needed instead of ever
+saving it - it never actually grows the local dataset. The obvious fix:
+when `iconUrl()` falls back to browse.wf, save that response into
+`icon-cache/` (same place local extraction writes to) so it's served
+locally on every later request. Done right, this makes the manual
+Warframe-Exporter setup above **optional rather than the only way to get
+a real local icon cache** - anyone who's ever been online once ends up
+with most of the catalog cached locally anyway, purely as a side effect
+of normal use, no `Cache.Windows`/exporter setup required. Not done yet -
+this pass only added the live fallback itself (see above); persisting it
+is a follow-up.
+
 **Linux/Steam Deck support is source-verified only, unverified on real
 hardware** - this repo's dev environment has no Linux machine to test on.
-A `Warframe-Exporter-CLI.AppImage` build is vendored for Linux (defensive
+The code path handles a Linux `Warframe-Exporter-CLI.AppImage` the same
+way it handles the Windows `.exe` (same manual, user-supplied setup -
+**this repo does not bundle either binary**, see above): a defensive
 `chmod 0o755` before each run, since git doesn't reliably preserve the
-executable bit through a Linux checkout; `APPIMAGE_EXTRACT_AND_RUN=1` set
-when spawning it, in case FUSE isn't available to mount it directly - the
-AppImage format's own documented fallback), but nobody has actually run
-this on a real Steam Deck yet. Worst case if something's wrong here is the
-existing graceful placeholder-icon fallback, not a crash - but this
+executable bit through a Linux checkout, plus `APPIMAGE_EXTRACT_AND_RUN=1`
+set when spawning it in case FUSE isn't available to mount it directly -
+the AppImage format's own documented fallback. None of this has actually
+been run on a real Steam Deck yet. Worst case if something's wrong here is
+the existing graceful placeholder-icon fallback, not a crash - but this
 shouldn't be treated as "confirmed working on Steam Deck" until someone
 actually does that.
 
