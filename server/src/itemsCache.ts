@@ -60,10 +60,11 @@
 // `type` is the UI-facing grouping (Mods and Arcanes share `category`
 // "Upgrades" server-side, but a user filtering the shop wants them split).
 
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { fetchAllItems, type WfmItemEntry } from "./warframeMarketApi.js";
+import { getIconPathForGameRef, getLocalIconPath } from "./localIcons.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -204,14 +205,76 @@ const PRIME_WEAPON_SETS: PrimeSetDef[] = JSON.parse(
     readFileSync(path.join(__dirname, "../prime-weapon-sets.json"), "utf8")
 );
 
-const REFRESH_MS = 60 * 60 * 1000; // 1 hour
+// Disk-persisted, seed-then-cache model mirroring priceCache.ts's own
+// (proven) shape - see that file's header comment for the full rationale.
+// There is deliberately NO time-based auto re-fetch here anymore: the
+// catalog only ever changes when the user explicitly triggers "Update
+// Data" (routes.ts) - getItems() just serves whatever's already loaded,
+// with zero network calls, so it can never reject/502 from being offline.
+const CATALOG_FILE = path.join(__dirname, "../items-cache.json");
+// Committed real snapshot (like price-history.seed.json) so a fresh
+// clone/install has a full catalog immediately instead of an empty shop
+// until the user's first "Update Data" click. Only loaded when no local
+// items-cache.json exists yet.
+const SEED_FILE = path.join(__dirname, "../items-cache.seed.json");
 
 let cache: MarketItem[] = [];
-let cachedAt = 0;
+let lastRefreshedAt: number | null = null;
 let refreshing: Promise<MarketItem[]> | null = null;
 
-function iconUrl(icon: string | undefined): string | null {
-    return icon ? `https://warframe.market/static/assets/${icon}` : null;
+interface DiskCache {
+    items: MarketItem[];
+    lastRefreshedAt: number | null;
+}
+
+function loadFromDisk(): void {
+    if (existsSync(CATALOG_FILE)) {
+        try {
+            const parsed = JSON.parse(readFileSync(CATALOG_FILE, "utf8")) as DiskCache;
+            cache = parsed.items ?? [];
+            lastRefreshedAt = parsed.lastRefreshedAt ?? null;
+            return;
+        } catch (err) {
+            console.error(`Failed to load ${CATALOG_FILE}, starting empty:`, err);
+        }
+    }
+
+    if (existsSync(SEED_FILE)) {
+        try {
+            const parsed = JSON.parse(readFileSync(SEED_FILE, "utf8")) as { items?: MarketItem[] };
+            cache = parsed.items ?? [];
+            console.log("Item catalog: no local cache found - seeded from the bundled snapshot.");
+        } catch (err) {
+            console.error(`Failed to load bundled seed ${SEED_FILE}:`, err);
+        }
+    }
+}
+loadFromDisk();
+
+function saveToDisk(): void {
+    try {
+        const disk: DiskCache = { items: cache, lastRefreshedAt };
+        writeFileSync(CATALOG_FILE, JSON.stringify(disk));
+    } catch (err) {
+        console.error(`Failed to save ${CATALOG_FILE}:`, err);
+    }
+}
+
+// Local-only, no network fallback - warframe.market's own icon hotlink
+// (the previous source here) is both a live-network dependency and, per
+// the user, currently broken outright. Looks up this item's real gameRef
+// in ICON_PATHS (built from Public Export, not warframe.market's own
+// icon field - the `icon` parameter this used to take is gone) and
+// returns a served /icon-cache/... URL only if that file has actually
+// been extracted already (see localIcons.ts) - otherwise null, which the
+// frontend renders as a placeholder. Extraction itself only ever happens
+// via the explicit "Update Data" action (routes.ts), never triggered from
+// here.
+function iconUrl(gameRef: string): string | null {
+    const iconPath = getIconPathForGameRef(gameRef);
+    if (!iconPath) return null;
+    const rel = getLocalIconPath(iconPath);
+    return rel ? `/icon-cache/${rel}` : null;
 }
 
 function classify(item: WfmItemEntry): MarketItem | null {
@@ -241,7 +304,7 @@ function classify(item: WfmItemEntry): MarketItem | null {
             slug: item.slug,
             gameRef: item.gameRef,
             name: en.name,
-            icon: iconUrl(en.icon),
+            icon: iconUrl(item.gameRef),
             category: "Upgrades",
             type: "mod",
             defaultSubtype: "regular",
@@ -259,7 +322,7 @@ function classify(item: WfmItemEntry): MarketItem | null {
             slug: item.slug,
             gameRef: item.gameRef,
             name: en.name,
-            icon: iconUrl(en.icon),
+            icon: iconUrl(item.gameRef),
             category: "Upgrades",
             type: "arcane",
             defaultSubtype: "regular",
@@ -280,7 +343,7 @@ function classify(item: WfmItemEntry): MarketItem | null {
             slug: item.slug,
             gameRef: item.gameRef,
             name: en.name,
-            icon: iconUrl(en.icon),
+            icon: iconUrl(item.gameRef),
             category: "MiscItems",
             type: "relic",
             defaultSubtype: refinements.includes("intact") ? "intact" : (refinements[0] ?? "intact"),
@@ -341,7 +404,7 @@ function buildPrimeCategoryItems(
                 slug: wfm!.slug,
                 gameRef: def.gameRef,
                 name: en.name,
-                icon: iconUrl(en.icon),
+                icon: iconUrl(def.gameRef),
                 category: def.category,
                 type: "prime_part",
                 defaultSubtype: "regular",
@@ -359,7 +422,7 @@ function buildPrimeCategoryItems(
             slug: setWfm.slug,
             gameRef: setDef.setGameRef,
             name: setEn.name,
-            icon: iconUrl(setEn.icon),
+            icon: iconUrl(setDef.setGameRef),
             category: "MiscItems", // unused for granting - the parts[] array below drives the grant loop, never this field
             type: "prime_set",
             defaultSubtype: "regular",
@@ -383,14 +446,51 @@ async function refresh(): Promise<MarketItem[]> {
         ...buildPrimeCategoryItems(all, PRIME_WEAPON_SETS, weaponPrimeSlotFromGameRef)
     ];
     cache = [...classified, ...primeItems];
-    cachedAt = Date.now();
+    lastRefreshedAt = Date.now();
+    saveToDisk();
     return cache;
 }
 
+// Zero network calls - serves whatever's already loaded (disk cache, seed,
+// or the result of the last triggerManualCatalogRefresh()). Never rejects:
+// there's simply nothing to serve yet on a genuinely fresh install with no
+// seed and no completed refresh, which callers (routes.ts) treat as an
+// empty catalog, not an error.
+//
+// `icon` is recomputed fresh here rather than trusting whatever's stored
+// in `cache`/items-cache.json - it's cheap (a lookup + fs.existsSync per
+// item) and means icon availability always reflects the CURRENT icon
+// cache on disk, regardless of when the catalog was last refreshed vs.
+// when icons were last extracted. Without this, an item classified before
+// its icon folder was extracted (or vice versa - icons extracted in a
+// past run, catalog re-seeded fresh since) would show a stale/incorrect
+// icon forever until the next full catalog refresh happened to line up
+// with a completed icon extraction. routes.ts's POST /api/update-data
+// runs the catalog refresh and icon extraction as separate steps, so this
+// ordering issue is real, not hypothetical.
 export async function getItems(): Promise<MarketItem[]> {
-    if (Date.now() - cachedAt < REFRESH_MS && cache.length > 0) {
-        return cache;
-    }
+    return cache.map(item => ({ ...item, icon: iconUrl(item.gameRef) }));
+}
+
+export interface CatalogStatus {
+    state: "empty" | "seeded" | "live";
+    itemCount: number;
+    lastRefreshedAt: number | null;
+    refreshInProgress: boolean;
+}
+
+export function getCatalogStatus(): CatalogStatus {
+    const state = cache.length === 0 ? "empty" : lastRefreshedAt === null ? "seeded" : "live";
+    return { state, itemCount: cache.length, lastRefreshedAt, refreshInProgress: refreshing !== null };
+}
+
+// User-triggered "Update Data" (routes.ts) - the ONLY way the catalog ever
+// re-fetches from warframe.market now. Returns immediately if a refresh is
+// already in progress; otherwise kicks one off and returns the promise so
+// the caller can await it as part of the combined update-data flow (unlike
+// priceCache's fire-and-forget sweep, this one's fast enough - a single
+// request - to just await directly).
+export function triggerManualCatalogRefresh(): Promise<MarketItem[]> {
     if (!refreshing) {
         refreshing = refresh().finally(() => {
             refreshing = null;

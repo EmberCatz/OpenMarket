@@ -106,37 +106,52 @@ function toast(message, ok) {
     setTimeout(() => el.remove(), 6000);
 }
 
+// This app runs entirely off its local cache (catalog + prices + icons) -
+// see server/src/itemsCache.ts/priceCache.ts/localIcons.ts's module
+// comments. GET /api/items never touches the network and never rejects;
+// an empty result specifically means no cache exists at all yet (a
+// genuinely fresh install with no seed, before the first "Update Data"),
+// not a transient failure.
 async function loadItems() {
-    setStatus("Loading items from warframe.market...");
+    setStatus("Loading local catalog...");
     try {
         const res = await fetch("/api/items");
         if (!res.ok) throw new Error((await res.json()).error || res.statusText);
         allItems = await res.json();
+        if (allItems.length === 0) {
+            setStatus("No local data yet - connect to the internet once and click Update Data.");
+            return;
+        }
         render();
     } catch (err) {
         setStatus(`Failed to load items: ${err.message}`);
     }
 }
 
-// "Update Prices" button - forces a full resweep instead of waiting for
-// the automatic weekly one (see server/src/priceCache.ts). A brand-new
-// item (e.g. freshly added Prime parts) gets backfilled automatically
-// within the hour regardless - this button is for a user who wants
-// genuinely current numbers across the board right now. The sweep itself
-// takes several minutes server-side and runs in the background, so this
-// just starts it and polls /api/status for progress/completion rather
-// than waiting on the POST itself.
+// "Update Data" button - the only thing that ever talks to
+// warframe.market or extracts icons (see server/src/routes.ts's POST
+// /api/update-data). Everything else - browsing, pricing, icons - runs
+// off the local cache with zero network calls, so this button is the
+// user's explicit "go get anything new" action, not something that runs
+// on its own. Takes a while server-side (catalog refresh, then a full
+// price resweep, then icon extraction) and runs in the background, so
+// this just starts it and polls /api/status for progress/completion
+// rather than waiting on the POST itself.
 let refreshPollTimer = null;
 
 function setRefreshButtonState(inProgress) {
     refreshPricesBtn.disabled = inProgress;
-    refreshPricesBtn.textContent = inProgress ? "Updating Prices…" : "Update Prices";
+    refreshPricesBtn.textContent = inProgress ? "Updating Data…" : "Update Data";
+}
+
+function isUpdateInProgress(status) {
+    return status.catalog.refreshInProgress || status.database.refreshInProgress || status.icons.extracting;
 }
 
 async function pollRefreshStatus() {
     try {
         const status = await fetchJsonWithRetry("/api/status");
-        if (status.database.refreshInProgress) {
+        if (isUpdateInProgress(status)) {
             setRefreshButtonState(true);
             return;
         }
@@ -148,6 +163,10 @@ async function pollRefreshStatus() {
     setRefreshButtonState(false);
     clearInterval(refreshPollTimer);
     refreshPollTimer = null;
+    // The catalog may have gone from empty to populated (first-ever
+    // update on a fresh install) - reload so the shop actually shows it
+    // without needing a manual page refresh.
+    if (allItems.length === 0) loadItems();
 }
 
 function startPollingRefreshStatus() {
@@ -159,17 +178,17 @@ function startPollingRefreshStatus() {
 refreshPricesBtn.addEventListener("click", async () => {
     setRefreshButtonState(true);
     try {
-        const res = await fetch("/api/refresh-prices", { method: "POST" });
+        const res = await fetch("/api/update-data", { method: "POST" });
         if (res.status === 409) {
-            toast("A price refresh is already running.", true);
+            toast("An update is already running.", true);
             startPollingRefreshStatus();
             return;
         }
         if (!res.ok) throw new Error((await res.json()).error || res.statusText);
-        toast("Price refresh started - this takes several minutes.", true);
+        toast("Update started - this takes several minutes.", true);
         startPollingRefreshStatus();
     } catch (err) {
-        toast(`Failed to start price refresh: ${err.message}`, false);
+        toast(`Failed to start update: ${err.message}`, false);
         setRefreshButtonState(false);
     }
 });
@@ -180,7 +199,7 @@ refreshPricesBtn.addEventListener("click", async () => {
 (async () => {
     try {
         const status = await fetchJsonWithRetry("/api/status");
-        if (status.database.refreshInProgress) startPollingRefreshStatus();
+        if (isUpdateInProgress(status)) startPollingRefreshStatus();
     } catch {
         // Best-effort only - the button just stays in its default state.
     }

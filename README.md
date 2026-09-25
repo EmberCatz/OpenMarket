@@ -40,11 +40,16 @@ stocked with real market prices, not an actual trading system.
 
 - **Mods, Arcanes, Relics, and Prime Warframe & Weapon parts/sets** — buy
   and sell at any rank (mods/arcanes) or refinement (relics).
-- **Real prices**, refreshed weekly from warframe.market's historical
-  order data — not made up, not live-fetched on every click. Newly-added
-  items get backfilled automatically within the hour instead of waiting
-  for the next weekly sweep, and an "Update Prices" button forces a full
-  resweep on demand.
+- **Fully offline after first setup** — the catalog and real prices
+  (historical median data from warframe.market) are cached to disk and
+  never re-fetched automatically; one **"Update Data"** button refreshes
+  everything on demand, whenever you have a connection. No internet, no
+  problem in the meantime — this was built with Steam Deck/offline play
+  specifically in mind.
+- **Real icons**, extracted locally from your own Warframe install — no
+  network dependency for art either. Optional one-time setup (see
+  [DEVLOG.md](DEVLOG.md#offline--local-data-model)); items without it set
+  up just show a placeholder instead of a broken image.
 - **Live owned counts**, synced from your actual SpaceNinjaServer
   inventory, so Sell auto-disables on things you don't have.
 - **Sort and filter** by name, type, price, rarity, relic era, or owned

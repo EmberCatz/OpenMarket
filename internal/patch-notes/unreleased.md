@@ -15,6 +15,47 @@ shipped (e.g. `v1.2.1.md`) and create a fresh `unreleased.md` — see
 
 ---
 
+## 2026-09-25 — Fully offline/local-only data model: catalog + prices + icons, driven by real Discord feedback
+
+Three real reports: no-internet = hard error, prices feel slow (kept
+re-fetching live), icons broken outright (warframe.market's own icon CDN
+apparently changed). Fixed all three - see `BUGS.md` (3 new rows) and
+`DEVLOG.md`'s new "Offline / local data model" section for the full
+writeup. Short version:
+
+- Item catalog gained disk persistence (`items-cache.json` + a committed
+  `items-cache.seed.json`) mirroring the pricing cache's proven shape -
+  `GET /api/items` never touches the network and never rejects now.
+- All automatic background refreshing removed (catalog's hourly re-fetch,
+  prices' weekly resweep) - one manual **"Update Data"** button
+  (`POST /api/update-data`, replaces the old prices-only
+  `POST /api/refresh-prices`) does catalog + prices + icons together.
+  `GET /api/status` bumped to `schemaVersion: 2` (new `catalog`/`icons`
+  blocks) - **launcher updated to match** (`KNOWN_STATUS_SCHEMA_VERSION`
+  1 -> 2), needs a new launcher build to actually reach users, otherwise
+  an already-installed launcher shows "unknown" status against a server
+  running this version.
+- Icons completely re-sourced off warframe.market onto local, offline
+  extraction via Warframe-Exporter reading a real client's
+  `Cache.Windows` directly - `MARKET_EMULATOR_CACHE_DIR`/
+  `MARKET_EMULATOR_EXPORTER_PATH` env vars, off by default, graceful
+  placeholder-icon fallback for anyone who doesn't set it up. **The
+  extraction tool itself is NOT bundled in this repo** (Puxtril/
+  Warframe-Exporter has no LICENSE file - no redistribution rights) -
+  documented as a manual opt-in setup step in `DEVLOG.md` instead.
+- Real coverage on a Windows extraction run: Prime sets 100%, Arcanes
+  100%, Relics 96.6%, Mods 95.7%, individual Prime part blueprints 0% (no
+  icon exists anywhere in Public Export for those - matches real in-game
+  behavior, not a gap).
+- **Linux/Steam Deck path (the `.AppImage` build) is unverified on real
+  hardware** - see `BUGS.md`'s new row, which explicitly calls out not
+  cutting a real release until this AND the pre-existing Steam Deck
+  blank-screen fix (entry below, also unverified in real CI/hardware) get
+  tested together on an actual Steam Deck.
+- No version bumps in this pass (regular `master` commit, not a release
+  cut) - see the release walkthrough in `../../CLAUDE.md` for what needs
+  bumping when this is actually ready to tag.
+
 ## 2026-09-24 — Confirmed root cause of the Linux (Steam Deck) blank-screen bug
 
 No code fix yet, but the real cause is now confirmed (see `BUGS.md`): the

@@ -115,9 +115,17 @@ number itself, from real closed trades — this app just takes the median
 per rank/refinement, persisted to `server/price-history.json`. Serving a
 price is then a plain in-memory lookup with **zero network calls at
 request time** — every price on a page, and even sorting the entire
-catalog by price, resolves in milliseconds. The whole sweep re-runs
-**weekly**; a 90-day rolling window barely shifts day to day, so this
-stays current without needing to be more frequent.
+catalog by price, resolves in milliseconds.
+
+**No more automatic re-sweep, 2026-09-25.** The full sweep used to re-run
+on a weekly timer automatically. Per real Discord tester feedback
+("OpenWF's whole point is offline play, this shouldn't need a live
+connection to work") the app moved to a fully offline, manual-refresh
+model across the board — see "Offline / local data model" below. The full
+sweep now only ever runs via the "Update Data" button; the small
+backfill-for-genuinely-new-items pass (next paragraph) still runs
+automatically, since it's cheap/self-healing and doesn't touch anything
+that already has data.
 
 This is the **legacy v1 API** — v2 (used for everything else in this
 app) has no equivalent endpoint at all (checked directly: none of
@@ -159,21 +167,21 @@ restarting with 377 newly-classified weapon Prime slugs missing triggered
 an automatic backfill that filled all 377 in the background without
 touching the full-sweep timer.
 
-**Manual "Update Prices" button, same day.** `POST /api/refresh-prices`
-(`triggerManualRefresh()`) starts a full resweep on demand for a user who
+**Manual "Update Data" button** (renamed from "Update Prices" 2026-09-25,
+see "Offline / local data model" below - it now also refreshes the
+catalog and extracts icons in the same action). `POST /api/update-data`
+starts a full price resweep (among other things) on demand for a user who
 wants genuinely current numbers everywhere right now, not just gap-filled
 new items - returns `202 {started: true}` immediately (the sweep itself
-still takes several minutes and runs in the background, same as the
-automatic one) or `409` if one's already running. The frontend polls the
-existing `GET /api/status` `database.refreshInProgress` field rather than
-needing a new status endpoint - the button shows "Updating Prices…"
-(disabled) for the duration, including on page load if a sweep was
-already in progress from another trigger. Verified via curl (409 while a
-sweep was running, 202 once it finished) and in a real browser
-(Playwright): button state correctly reflected an in-progress sweep on
-load, and Boltor Prime Set/parts and Akmagnus Prime Set (the
-duplicate-parts case) all showed real resolved prices once their backfill
-completed.
+still takes several minutes and runs in the background) or `409` if one's
+already running. The frontend polls `GET /api/status` rather than needing
+a dedicated status endpoint - the button shows "Updating Data…" (disabled)
+for the duration, including on page load if an update was already in
+progress from another trigger. Verified via curl (409 while running, 202
+once finished) and in a real browser (Playwright): button state correctly
+reflected an in-progress sweep on load, and Boltor Prime Set/parts and
+Akmagnus Prime Set (the duplicate-parts case) all showed real resolved
+prices once their backfill completed.
 
 If a specific rank or refinement has no trade history in the last 90 days
 at all, **ladder interpolation** linearly interpolates between whichever
@@ -201,6 +209,87 @@ known-good snapshot to fall back to rather than the shop going priceless.
 A **"?"** anywhere (price, a ranked-copy dropdown line's price, or
 "Owned: ?") is clickable to retry just that one value instead of waiting
 for the next full re-render.
+
+## Offline / local data model
+
+**2026-09-25, driven directly by real Discord tester feedback**: (1) the
+server hard-errors with no internet connection, even though offline play
+is OpenWF's whole selling point (Steam Deck sleep mode etc); (2) prices
+felt slow because they were re-fetched live instead of leaning on the
+cache that already existed; (3) icons weren't cached at all, and
+warframe.market's own icon hotlink (`https://warframe.market/static/
+assets/...`) had broken outright by the time this was investigated. All
+three turned out to be real, not just "feels slow" - see the fixes below.
+Net result: the app now makes **zero automatic network calls of any
+kind** - it loads from local disk on startup and only ever talks to
+warframe.market (or extracts icons) when the user explicitly clicks
+**"Update Data"**.
+
+**Item catalog now disk-persisted**, mirroring the pricing cache's
+already-proven seed/disk-cache shape. `server/items-cache.json`
+(gitignored runtime, like `price-history.json`) + a committed
+`server/items-cache.seed.json` (a real ~3000-item snapshot, so a fresh
+clone/install has a full catalog immediately). `GET /api/items` now never
+touches the network and never rejects - a genuinely fresh install with no
+seed and no network shows "No local data yet - connect to the internet
+once and click Update Data" instead of an opaque 502. The old automatic
+hourly catalog re-fetch is gone; the catalog only changes via "Update
+Data" now.
+
+**Icons re-sourced entirely away from warframe.market**, onto local,
+fully-offline extraction via
+[Warframe-Exporter](https://github.com/Puxtril/Warframe-Exporter) reading
+directly from a real Warframe client install's `Cache.Windows` - no
+network dependency at all, and immune to warframe.market changing its own
+icon CDN again. Off by default (`MARKET_EMULATOR_CACHE_DIR` env var, no
+default - the exact client-version path can't be guessed), gracefully
+degrading to a placeholder icon (`public/assets/no-icon.svg`) for any item
+whose icon hasn't been extracted, including every user who never sets
+this up at all. **The extraction tool itself is not bundled in this
+repo** - Puxtril/Warframe-Exporter has no LICENSE file, so redistributing
+its binary isn't something this project has the rights to do. To enable
+real icons: download the matching CLI build (`Warframe-Exporter-CLI.exe`
+on Windows, `Warframe-Exporter-CLI.AppImage` on Linux) from
+[its releases page](https://github.com/Puxtril/Warframe-Exporter/releases),
+place it wherever you like, and set `MARKET_EMULATOR_CACHE_DIR` (your
+`Cache.Windows` path) + `MARKET_EMULATOR_EXPORTER_PATH` (the CLI binary's
+path) before starting the server.
+
+Extraction pulls only the specific folders this app's catalog can
+actually use (~77 of them, computed at runtime from `icon-paths.json` -
+see `server/tools/generate-icon-paths.js`), not broad umbrella folders -
+an early attempt bulk-extracting whole categories
+(`StoreIcons/Weapons`, `Interface/Cards/Images`) each took 10+ minutes and
+had to be killed, because those folders also hold every NPC
+faction's/non-Prime item's art this app never needs; the narrow-folder
+version completes in under 2 minutes. Verified coverage on a real
+extraction run: Prime Warframe/weapon sets 100%, Arcanes 100%, Relics
+96.6% (remaining gap is items too new for the local Public Export
+snapshot, not a code issue), Mods 95.7%. Individual Prime part blueprints
+(Barrel/Chassis/etc.) have no icon anywhere in Public Export at all and
+always show the placeholder - this matches real in-game behavior (a part
+blueprint shows a generic icon, not unique art), not a gap to chase.
+
+**Linux/Steam Deck support is source-verified only, unverified on real
+hardware** - this repo's dev environment has no Linux machine to test on.
+A `Warframe-Exporter-CLI.AppImage` build is vendored for Linux (defensive
+`chmod 0o755` before each run, since git doesn't reliably preserve the
+executable bit through a Linux checkout; `APPIMAGE_EXTRACT_AND_RUN=1` set
+when spawning it, in case FUSE isn't available to mount it directly - the
+AppImage format's own documented fallback), but nobody has actually run
+this on a real Steam Deck yet. Worst case if something's wrong here is the
+existing graceful placeholder-icon fallback, not a crash - but this
+shouldn't be treated as "confirmed working on Steam Deck" until someone
+actually does that.
+
+**One combined "Update Data" action** (`POST /api/update-data`, see
+Pricing above for the button rename) replaces the old prices-only
+refresh: catalog refresh, then a full price resweep, then icon extraction,
+all in one user-triggered operation. `GET /api/status` bumped to
+`schemaVersion: 2` (new `catalog`/`icons` blocks) - the launcher's own
+`KNOWN_STATUS_SCHEMA_VERSION` was updated to match in the same pass, so
+an already-installed launcher doesn't show a confusing "unknown" status
+against a server that's been updated to this version.
 
 ## Frontend
 
@@ -691,7 +780,12 @@ Read directly from SpaceNinjaServer's source, not guessed:
   until the first tag is pushed.
 - **Linux support is source-verified, not build-verified** as of
   2026-09-18 — no one has actually run a build on a real Linux machine
-  yet; the first tagged release will be the first real test.
+  yet; the first tagged release will be the first real test. As of
+  2026-09-25 this also covers the new local icon extraction's
+  `Warframe-Exporter-CLI.AppImage` path specifically — see "Offline /
+  local data model" above for what's already been done defensively
+  (chmod, FUSE fallback) without being able to confirm it on real
+  hardware.
 - **"Peculiar" mods were miscategorized as Arcanes until fixed 2026-09-18.**
   The 4 Peculiar mods (Growth/Bloom/Audience/End) carry BOTH `"mod"` and
   `"arcane_enhancement"` tags simultaneously on warframe.market — the only

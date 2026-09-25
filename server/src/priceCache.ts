@@ -7,10 +7,14 @@
 // per (item, rank/refinement) - the median of that variant's last-90-days
 // daily median prices (each day's median already computed by
 // warframe.market from real closed trades, not derived here) - via a
-// background sweep over the whole catalog, refreshed weekly. Serving a
-// price is then a synchronous in-memory lookup with ZERO network calls
-// at request time, eliminating the "prices load slowly" problem at its
-// root rather than just caching around it.
+// background sweep over the whole catalog, triggered manually by the user
+// ("Update Data" - see routes.ts's POST /api/update-data) rather than on
+// any automatic schedule (2026-09-25: moved to a fully offline/manual-
+// refresh model, see itemsCache.ts's/localIcons.ts's module comments for
+// the same change on the catalog/icon side). Serving a price is then a
+// synchronous in-memory lookup with ZERO network calls at request time,
+// eliminating the "prices load slowly" problem at its root rather than
+// just caching around it.
 //
 // Ladder interpolation (mod/arcane rank, AND relic refinement as of
 // 2026-09-18) is carried over from the previous design, unchanged in
@@ -45,7 +49,6 @@ const HISTORY_FILE = path.join(__dirname, "../price-history.json");
 // file's top comment). Only ever read once, at startup, when no local
 // price-history.json exists yet - never overwrites a real cache.
 const SEED_FILE = path.join(__dirname, "../price-history.seed.json");
-const REFRESH_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // weekly
 
 // MEASURED, not assumed: 5 CONCURRENT requests against this v1 endpoint
 // triggered near-immediate 429s (confirmed live 2026-09-18 - almost every
@@ -157,8 +160,8 @@ async function refreshOneSlug(slug: string): Promise<void> {
                 continue;
             }
             // Leave whatever was there before (if anything) rather than
-            // wiping a slug's history over this failure - the next
-            // weekly sweep tries again from scratch.
+            // wiping a slug's history over this failure - the next manual
+            // "Update Data" sweep tries again from scratch.
             console.error(`Price history: failed to refresh "${slug}":`, (err as Error).message);
             return;
         }
@@ -169,9 +172,9 @@ async function refreshOneSlug(slug: string): Promise<void> {
 // REQUEST_DELAY_MS's comment for why this is sequential rather than
 // concurrent. Not awaited by anything request-facing. Saves to disk once
 // at the end rather than per-slug: a partial/interrupted sweep still
-// leaves the previous week's (still-reasonable) data in place for
-// whatever hadn't been reached yet, and ~2500 individual disk writes
-// would be wasteful.
+// leaves the previous (still-reasonable) data in place for whatever
+// hadn't been reached yet, and ~2500 individual disk writes would be
+// wasteful.
 async function runRefreshSweep(): Promise<void> {
     if (refreshInProgress) return;
     refreshInProgress = true;
@@ -194,18 +197,17 @@ async function runRefreshSweep(): Promise<void> {
 }
 
 // Fills in slugs that have NO price entry at all yet - distinct from the
-// weekly full sweep, which re-checks EVERY slug regardless of whether it
-// already has data. Exists because the catalog can gain new items
-// between full sweeps (new Prime parts/sets added to this app, or DE
-// shipping new tradeable items in general) and the time-gated full sweep
-// alone would leave those with no price for up to a week. Normally a
-// small set, so it completes in seconds even at the same rate-limit-safe
-// sequential pace as a full sweep - never runs concurrently with one
-// (shares `refreshInProgress`, since both hit the same connection limit).
-// Deliberately does NOT touch `lastRefreshCompletedAt` - that field
-// gates the full sweep specifically (which also refreshes EXISTING
-// slugs' potentially-stale prices), and a backfill run must never delay
-// that.
+// manual full sweep (triggerManualRefresh), which re-checks EVERY slug
+// regardless of whether it already has data. Exists because the catalog
+// can gain new items between manual updates (new Prime parts/sets added
+// to this app, or DE shipping new tradeable items in general) and,
+// without this, those would have no price at all until the user
+// remembers to click "Update Data". Normally a small set, so it completes
+// in seconds even at the same rate-limit-safe sequential pace as a full
+// sweep - never runs concurrently with one (shares `refreshInProgress`,
+// since both hit the same connection limit). Deliberately does NOT touch
+// `lastRefreshCompletedAt` - that field reflects the last full manual
+// sweep specifically, and a backfill run must never be mistaken for one.
 async function runBackfillSweep(): Promise<void> {
     if (refreshInProgress) return;
     const items = await getItems();
@@ -226,31 +228,23 @@ async function runBackfillSweep(): Promise<void> {
     }
 }
 
-export function ensureFreshPriceHistory(): void {
-    if (lastRefreshCompletedAt === null || Date.now() - lastRefreshCompletedAt > REFRESH_INTERVAL_MS) {
-        void runRefreshSweep();
-    } else {
-        void runBackfillSweep();
-    }
-}
+// Deliberately NOT time-based anymore (2026-09-25) - a full resweep only
+// ever happens via triggerManualRefresh() (POST /api/update-data), per the
+// "one big local cache, refreshed manually" model. This hourly check is
+// narrower: it only ever backfills genuinely missing entries (new items
+// added to the catalog since the last sweep, live or seeded), never
+// re-checks existing ones - a new item isn't permanently blank between
+// manual updates, without redownloading anything that's already cached.
+setInterval(() => void runBackfillSweep(), 60 * 60 * 1000);
+void runBackfillSweep();
 
-// Only ensureFreshPriceHistory() at module load checks staleness, and
-// that's only evaluated once at server startup - this catches the case
-// where the server stays running for more than a week straight without
-// a restart. It also runs the backfill check (see runBackfillSweep) on
-// every tick, so newly-added items don't have to wait for either a
-// restart or the weekly boundary to get a first price.
-setInterval(ensureFreshPriceHistory, 60 * 60 * 1000); // hourly check
-ensureFreshPriceHistory();
-
-// User-triggered full resweep (see routes.ts's POST /api/refresh-prices) -
-// unlike the automatic backfill above, this deliberately re-checks EVERY
-// slug (a user asking to "update prices" wants genuinely current numbers,
-// not just gap-filling) and DOES advance `lastRefreshCompletedAt`, same
-// as the automatic weekly one - it's the same operation, just triggered
-// early. Returns immediately; the sweep itself runs in the background,
-// same as the automatic one - callers should poll getPriceCacheStatus()
-// (already exposed via GET /api/status) for progress/completion.
+// User-triggered full resweep, called as part of routes.ts's combined
+// POST /api/update-data - unlike the automatic backfill above, this
+// deliberately re-checks EVERY slug (a user asking to update data wants
+// genuinely current numbers, not just gap-filling) and DOES advance
+// `lastRefreshCompletedAt`. Returns immediately; the sweep itself runs in
+// the background - callers should poll getPriceCacheStatus() (exposed via
+// GET /api/status) for progress/completion.
 export function triggerManualRefresh(): { started: boolean } {
     if (refreshInProgress) return { started: false };
     void runRefreshSweep();

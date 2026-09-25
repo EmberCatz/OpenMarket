@@ -2,3 +2,5 @@ node_modules/
 dist/
 price-cache.json
 price-history.json
+items-cache.json
+icon-cache/

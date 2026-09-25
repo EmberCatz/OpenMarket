@@ -1,7 +1,16 @@
 import { Router } from "express";
 import { readFileSync } from "node:fs";
-import { getItems, findItemByGameRef, findItemBySlug, resolveSellGameRef, RELIC_REFINEMENT_SUFFIXES } from "./itemsCache.js";
+import {
+    getItems,
+    findItemByGameRef,
+    findItemBySlug,
+    resolveSellGameRef,
+    RELIC_REFINEMENT_SUFFIXES,
+    getCatalogStatus,
+    triggerManualCatalogRefresh
+} from "./itemsCache.js";
 import { getPrice, getPriceCacheStatus, triggerManualRefresh } from "./priceCache.js";
+import { ensureAllIconsCached, getIconCacheStatus } from "./localIcons.js";
 import { enqueueOrder, popPendingOrder, reportOrderResult, getOrder } from "./orderQueue.js";
 import {
     setInventorySnapshot,
@@ -44,12 +53,16 @@ const PLUTO_STALE_MS = 8000;
 // OpenMarket Launcher, or anything else polling this) can detect a
 // version it doesn't understand and show "unknown" rather than
 // misreading a renamed/restructured field as a false status.
+// v2 (2026-09-25): added `catalog`/`icons`, moved to a fully offline/
+// manual-refresh data model - see POST /api/update-data.
 apiRouter.get("/status", (_req, res) => {
     res.json({
-        schemaVersion: 1,
+        schemaVersion: 2,
         serverVersion: SERVER_VERSION,
         server: { ok: true, uptimeSeconds: Math.floor((Date.now() - SERVER_STARTED_AT) / 1000) },
+        catalog: getCatalogStatus(),
         database: getPriceCacheStatus(),
+        icons: getIconCacheStatus(),
         pluto: {
             lastPollAt: lastPlutoPollAt,
             connected: lastPlutoPollAt !== null && Date.now() - lastPlutoPollAt < PLUTO_STALE_MS
@@ -59,44 +72,43 @@ apiRouter.get("/status", (_req, res) => {
 
 // --- Frontend-facing ---
 
-// User-triggered "Update Prices" button - forces a full resweep instead
-// of waiting for the automatic weekly one (see priceCache.ts's
-// triggerManualRefresh()/runBackfillSweep() for how a NEW item's price
-// normally gets backfilled automatically without needing this at all;
-// this is for a user who wants genuinely current numbers for everything,
-// not just gap-filling). Returns immediately - the sweep runs in the
-// background, same as the automatic one, so the frontend polls
-// GET /api/status's `database` field for progress/completion rather than
-// waiting on this request.
-apiRouter.post("/refresh-prices", (_req, res) => {
-    const { started } = triggerManualRefresh();
-    if (!started) {
-        res.status(409).json({ error: "A price refresh is already in progress." });
+// User-triggered "Update Data" button - the ONLY thing that ever talks to
+// warframe.market/extracts icons now (see itemsCache.ts/priceCache.ts/
+// localIcons.ts's module comments: no more automatic background
+// refreshing). Runs all three pieces - catalog, then prices, then icons -
+// and returns once they've all settled, since unlike the old
+// prices-only sweep (which alone could take several minutes) the caller
+// needs one combined "done" signal rather than juggling three separate
+// polls. The frontend still shows progress via GET /api/status's
+// `refreshInProgress` fields while this is in flight.
+apiRouter.post("/update-data", async (_req, res) => {
+    if (getCatalogStatus().refreshInProgress || getPriceCacheStatus().refreshInProgress || getIconCacheStatus().extracting) {
+        res.status(409).json({ error: "An update is already in progress." });
         return;
     }
     res.status(202).json({ started: true });
+
+    try {
+        await triggerManualCatalogRefresh();
+    } catch (err) {
+        console.error("Update Data: catalog refresh failed:", (err as Error).message);
+    }
+    triggerManualRefresh();
+    await ensureAllIconsCached();
 });
 
 apiRouter.get("/items", async (_req, res) => {
-    try {
-        res.json(await getItems());
-    } catch (err) {
-        res.status(502).json({ error: `Failed to load items from warframe.market: ${(err as Error).message}` });
-    }
+    res.json(await getItems());
 });
 
 apiRouter.get("/price/:slug", async (req, res) => {
     const subtype = typeof req.query.subtype === "string" ? req.query.subtype : "regular";
     const rank = typeof req.query.rank === "string" ? parseInt(req.query.rank, 10) || 0 : 0;
-    try {
-        // maxRank bounds the rank-interpolation fallback (see priceCache.ts) -
-        // only mods/arcanes have one, everything else passes null and just
-        // skips that fallback entirely.
-        const item = await findItemBySlug(req.params.slug);
-        res.json(await getPrice(req.params.slug, subtype, rank, item?.maxRank ?? null));
-    } catch (err) {
-        res.status(502).json({ error: `Failed to load price from warframe.market: ${(err as Error).message}` });
-    }
+    // maxRank bounds the rank-interpolation fallback (see priceCache.ts) -
+    // only mods/arcanes have one, everything else passes null and just
+    // skips that fallback entirely.
+    const item = await findItemBySlug(req.params.slug);
+    res.json(getPrice(req.params.slug, subtype, rank, item?.maxRank ?? null));
 });
 
 apiRouter.post("/order", async (req, res) => {
