@@ -304,6 +304,40 @@ of normal use, no `Cache.Windows`/exporter setup required. Not done yet -
 this pass only added the live fallback itself (see above); persisting it
 is a follow-up.
 
+**@wfcd/items CDN inserted as a second network tier, ahead of browse.wf
+(2026-09-26).** `@wfcd/items` (github.com/WFCD/warframe-items, MIT,
+actively maintained — commits within hours as of this writing) ships a
+pre-compiled `uniqueName -> imageName` dataset pulled from Warframe's own
+API; its `uniqueName` field is the exact same `/Lotus/...` path this app
+already uses as `gameRef` everywhere, confirmed by direct key match
+against this app's own `prime-warframe-sets.json`/`prime-weapon-sets.json`
+entries and `icon-paths.json` (2680/2690 = 99.6% of this app's real
+gameRefs resolve). `server/tools/generate-wfcd-icon-map.js` builds a
+static `server/wfcd-icon-map.json` from it offline (same precedent as
+`generate-icon-paths.js` — re-run manually after bumping the
+`@wfcd/items` npm dependency, never fetched live); relic gameRefs get the
+same Bronze-suffix stripping `generate-icon-paths.js` already does, since
+`@wfcd/items` carries the identical Bronze/Silver/Gold/Platinum
+refinement-suffix convention Public Export does. `wfcdIcons.ts` looks
+this map up and, when present, builds
+`https://cdn.warframestat.us/img/${imageName}` — @wfcd/items' own
+documented CDN (its README's "Image links" section), confirmed live via
+curl (200, correct `image/*` content-type, redirects to
+`raw.githubusercontent.com/wfcd/warframe-items`). `itemsCache.ts`'s
+`iconUrl()` now tries this tier before browse.wf: local extraction (if
+present) → wfcd CDN → browse.wf → placeholder. Rationale for the
+ordering: wfcd is a purpose-built, actively-maintained image host for
+this exact dataset, vs. browse.wf being an unaffiliated community mirror
+with unknown maintenance status — likely more reliable long-term, and
+free to add since it resolves through the same already-computed `gameRef`
+with no extra API call. browse.wf stays as the third tier for the small
+remainder wfcd doesn't cover (the 10 non-matching gameRefs are PvP
+augments, a deprecated Sentinel precept, and old Antique arcanes — see
+`generate-wfcd-icon-map.js`'s header for the full reasoning). Same
+graceful-degradation contract as the browse.wf-only version: the
+frontend's `<img>` `onerror` still falls through to the placeholder if
+every tier fails.
+
 **Linux/Steam Deck support is source-verified only, unverified on real
 hardware** - this repo's dev environment has no Linux machine to test on.
 The code path handles a Linux `Warframe-Exporter-CLI.AppImage` the same

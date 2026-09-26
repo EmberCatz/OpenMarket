@@ -65,6 +65,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { fetchAllItems, type WfmItemEntry } from "./warframeMarketApi.js";
 import { getIconPathForGameRef, getLocalIconPath } from "./localIcons.js";
+import { getWfcdIconUrl } from "./wfcdIcons.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -260,11 +261,12 @@ function saveToDisk(): void {
     }
 }
 
-// Local-first, opportunistic-network-fallback (added 2026-09-25). Looks
-// up this item's real gameRef in ICON_PATHS (built from Public Export,
-// not warframe.market's own icon field - the `icon` parameter this used
-// to take is gone entirely; that hotlink is both a live-network
-// dependency and, per the user, currently broken outright).
+// Local-first, opportunistic-network-fallback (added 2026-09-25, wfcd
+// tier added 2026-09-26). Looks up this item's real gameRef in ICON_PATHS
+// (built from Public Export, not warframe.market's own icon field - the
+// `icon` parameter this used to take is gone entirely; that hotlink is
+// both a live-network dependency and, per the user, currently broken
+// outright).
 //
 // Local extraction (see localIcons.ts) is preferred and is the only
 // option that works fully offline - but it's capped by what's actually
@@ -272,23 +274,28 @@ function saveToDisk(): void {
 // snapshot and the user's own Cache.Windows contain (a handful of items
 // are simply too new for the local dump, or sit in a folder deliberately
 // excluded from bulk extraction - see localIcons.ts's UNSAFE_BROAD_ROOTS).
-// For anything not yet locally extracted, fall back to browse.wf - a
-// long-established public mirror that serves Public Export's own icon
-// paths directly (confirmed in docs/public-export-reference.md §5), using
-// the EXACT SAME path already resolved above, so this needs no extra data
-// source or API call, just a different URL host. This is a real,
-// live-network dependency again for whatever local extraction hasn't
-// reached - but it degrades gracefully: the frontend's <img onerror>
-// falls back to the placeholder if browse.wf is unreachable (offline, or
-// browse.wf itself down), so this never blocks or breaks offline use,
-// it just means slightly fewer items get real art while offline than
-// while online. Extraction itself still only ever happens via the
-// explicit "Update Data" action (routes.ts), never triggered from here.
+//
+// For anything not yet locally extracted, try the @wfcd/items CDN
+// (wfcdIcons.ts) before browse.wf - it's the actively-maintained,
+// purpose-built image host for this exact dataset (vs. browse.wf being
+// an unaffiliated community mirror), and covers 2680/2690 (99.6%) of this
+// app's real gameRefs (checked 2026-09-26). browse.wf stays as the last
+// network tier for the handful wfcd doesn't have (mostly PvP augments and
+// a few deprecated arcanes) - using the EXACT SAME path already resolved
+// above, so it needs no extra data source or API call, just a different
+// URL host. Both are real, live-network dependencies - but they degrade
+// gracefully: the frontend's <img onerror> falls back to the placeholder
+// if neither is reachable (offline, or both hosts down), so this never
+// blocks or breaks offline use, it just means slightly fewer items get
+// real art while offline than while online. Local extraction itself
+// still only ever happens via the explicit "Update Data" action
+// (routes.ts), never triggered from here.
 function iconUrl(gameRef: string): string | null {
     const iconPath = getIconPathForGameRef(gameRef);
     if (!iconPath) return null;
     const rel = getLocalIconPath(iconPath);
-    return rel ? `/icon-cache/${rel}` : `https://browse.wf${iconPath}`;
+    if (rel) return `/icon-cache/${rel}`;
+    return getWfcdIconUrl(gameRef) ?? `https://browse.wf${iconPath}`;
 }
 
 function classify(item: WfmItemEntry): MarketItem | null {

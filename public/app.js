@@ -1,11 +1,12 @@
 const ITEMS_PER_PAGE = 40;
 
-// An item.icon can be either a local /icon-cache/... URL (always works)
-// or an opportunistic browse.wf network fallback (server/src/itemsCache.ts's
-// iconUrl() - only used when local extraction hasn't reached that item
-// yet). The network case can fail (offline, or browse.wf itself down) -
-// falling back to this placeholder on <img> error keeps that failure from
-// ever showing a browser's default broken-image icon.
+// An item.icon can be a local /icon-cache/... URL (always works) or one
+// of two opportunistic network fallbacks - the @wfcd/items CDN, then
+// browse.wf (server/src/itemsCache.ts's iconUrl() - only used when local
+// extraction hasn't reached that item yet). Either network case can fail
+// (offline, or the host itself down) - falling back to this placeholder
+// on <img> error keeps that failure from ever showing a browser's default
+// broken-image icon.
 const ICON_PLACEHOLDER = "/assets/no-icon.svg";
 function setIconSrc(img, src) {
     img.onerror = () => {
