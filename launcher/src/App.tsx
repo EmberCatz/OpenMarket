@@ -6,7 +6,15 @@ import { getVersion } from "@tauri-apps/api/app";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import "./App.css";
-import { DEFAULT_CONFIG, loadConfig, saveConfig, type LauncherConfig } from "./lib/config";
+import {
+    checkForUpdateNotice,
+    DEFAULT_CONFIG,
+    dismissUpdateNotice,
+    loadConfig,
+    saveConfig,
+    type DataUpdateNotice,
+    type LauncherConfig
+} from "./lib/config";
 import {
     checkNode,
     checkServerDeps,
@@ -58,6 +66,7 @@ export default function App() {
     const [updating, setUpdating] = useState(false);
     const [diagChecking, setDiagChecking] = useState(false);
     const [diagResult, setDiagResult] = useState<{ ok: boolean; message: string } | null>(null);
+    const [updateNotice, setUpdateNotice] = useState<DataUpdateNotice | null>(null);
 
     const autoOpenPending = useRef(false);
     const logEndRef = useRef<HTMLDivElement>(null);
@@ -97,6 +106,25 @@ export default function App() {
                 /* offline or endpoint unreachable - not worth surfacing as an error */
             });
     }, [configLoaded]);
+
+    // --- After the launcher itself was updated (auto-updater, or a manual
+    // reinstall over the top), remind the user that data isn't refreshed
+    // by that - see checkForUpdateNotice in lib/config.ts. Failure is
+    // silent: a missing reminder must never get in the way of the app. ---
+    useEffect(() => {
+        if (!configLoaded) return;
+        getVersion()
+            .then(checkForUpdateNotice)
+            .then(setUpdateNotice)
+            .catch(() => {
+                /* store/version unavailable - skip the reminder */
+            });
+    }, [configLoaded]);
+
+    function handleDismissUpdateNotice() {
+        setUpdateNotice(null);
+        dismissUpdateNotice().catch(() => {});
+    }
 
     async function handleUpdate() {
         if (!availableUpdate) return;
@@ -434,6 +462,16 @@ export default function App() {
                 {tab === "dashboard" && (
                     <div className="dashboard">
                         {error && <div className="banner error">{error}</div>}
+                        {updateNotice && (
+                            <div className="banner warn">
+                                <div>
+                                    Launcher updated (v{updateNotice.from} → v{updateNotice.to}). Updating the app does
+                                    not download new data - open OpenMarket and click <b>Update Data</b> to refresh the
+                                    item catalog, prices and icons.
+                                </div>
+                                <button onClick={handleDismissUpdateNotice}>Got it</button>
+                            </div>
+                        )}
                         {nodeMissing && (
                             <div className="banner error">
                                 <div>

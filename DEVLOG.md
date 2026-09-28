@@ -710,6 +710,31 @@ otherwise), and a scratch-port curl confirms `/api/status` now returns
 launcher window** — no GUI automation available for a native app from
 here, so this still wants a real manual test before being trusted fully.
 
+### "Launcher updated, data isn't" notice (added 2026-09-28)
+
+Updating the launcher (auto-updater, or reinstalling over it) never touches
+the item catalog, prices or icons - this app runs entirely off local data
+and only re-downloads it when the user clicks **Update Data** in the web
+UI. Nothing said so, so people updated and then wondered why nothing new
+had appeared. The launcher now remembers the last version that ran
+(`lastRunVersion` in `launcher-config.json`, via `lib/config.ts`'s
+`checkForUpdateNotice`). When the running version differs, the Dashboard
+shows a dismissible warning ("Launcher updated (vA -> vB). Updating the app
+does not download new data - open OpenMarket and click Update Data...").
+The notice is stored, not just shown once, so closing the launcher before
+reading it doesn't lose it; it stays until "Got it" is clicked. A first-ever
+run only records the version - a fresh install is not an update. Any
+store/version failure is silent (a missing reminder must never block the
+app).
+
+Verified in a browser against the built UI with a stubbed Tauri backend
+(store persisted in localStorage so a reload = a restart): first run shows
+nothing; update shows the notice; a restart without dismissing keeps it;
+"Got it" clears it and it stays gone after a restart; a later update shows
+it again. **Not verified inside the real Tauri shell** - the stub follows the
+installed plugin's invoke protocol, but the packaged app itself wasn't run.
+Needs a launcher rebuild to reach users.
+
 ### Releases and auto-update
 
 Tagged releases (`v*`) build via GitHub Actions

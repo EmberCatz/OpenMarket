@@ -46,3 +46,11 @@ shipped (e.g. `v1.3.1.md`) and create a fresh `unreleased.md` — see
   `itemsCache.ts`, `localIcons.ts`, `inventorySnapshot.ts`, `routes.ts`,
   `orderQueue.ts`, `index.ts`). Found by a local stress harness that is not
   part of this repo. See BUGS.md / DEVLOG.md.
+
+- **Launcher: "updated, but data isn't" notice.** After the launcher
+  updates itself, the Dashboard now shows a dismissible warning that
+  updating the app doesn't download new data and the user still has to
+  click Update Data in OpenMarket. Stays until dismissed; not shown on a
+  fresh install. **Needs a launcher rebuild/release** to reach users
+  (frontend-only change, `launcher/src/App.tsx` + `lib/config.ts`). See
+  DEVLOG.md.
