@@ -5,6 +5,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getVersion } from "@tauri-apps/api/app";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import logo from "./assets/logo.png";
 import "./App.css";
 import {
     checkForUpdateNotice,
@@ -428,6 +429,7 @@ export default function App() {
         <div className="app">
             <header className="topbar">
                 <span className="brand">
+                    <img className="brand-logo" src={logo} alt="" />
                     OpenMarket Launcher{" "}
                     {appVersion && <span className="version">v{appVersion}</span>}
                 </span>

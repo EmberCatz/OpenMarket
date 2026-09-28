@@ -56,3 +56,5 @@ shipped (e.g. `v1.3.1.md`) and create a fresh `unreleased.md` — see
   DEVLOG.md.
 
 - **Launcher: version shown in the header** ("OpenMarket Launcher v1.3.0"), so a bug report can name the exact build. Same launcher-rebuild note as above; `launcher/src/App.tsx` + `App.css`.
+
+- **Launcher: logo in the header**, left of the title (`launcher/src/assets/logo.png`, the 64px icon already generated for the app icon set). Same launcher-rebuild note as above.

@@ -738,6 +738,9 @@ Needs a launcher rebuild to reach users.
 The header also shows the launcher's own version next to the title now (from
 Tauri's `getVersion()`, the same value "Check for Issues" compares the
 server against). Verified in the same stubbed-browser setup.
+The logo now sits to the left of the title too (the existing 64x64 app icon,
+shown at 24px so it stays sharp on high-DPI screens; inline rather than a
+flex layout so the title/version text still copies as one line).
 
 ### Releases and auto-update
 
