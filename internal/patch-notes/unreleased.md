@@ -58,3 +58,11 @@ shipped (e.g. `v1.3.1.md`) and create a fresh `unreleased.md` — see
 - **Launcher: version shown in the header** ("OpenMarket Launcher v1.3.0"), so a bug report can name the exact build. Same launcher-rebuild note as above; `launcher/src/App.tsx` + `App.css`.
 
 - **Launcher: logo in the header**, left of the title (`launcher/src/assets/logo.png`, the 64px icon already generated for the app icon set). Same launcher-rebuild note as above.
+
+- **Full redesign of the web app and the launcher** to StarChart's (OpenTools')
+  design identity: amber on near-black, cut-corner shapes, League Gothic +
+  Rajdhani. No behaviour change. Fonts are bundled locally (SIL OFL, licence
+  notes in `public/fonts/` and `launcher/src/assets/fonts/`) and the two
+  warframe.com hotlinks (logo, favicon) are now local files, so the app stays
+  fully offline. README screenshots regenerated. Web app: `public/` update;
+  launcher: **needs a rebuild/release**. See DEVLOG.md.

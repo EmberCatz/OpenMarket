@@ -434,7 +434,7 @@ export default function App() {
                     {appVersion && <span className="version">v{appVersion}</span>}
                 </span>
                 <button className="icon-btn" onClick={() => setSettingsOpen(true)} title="Settings">
-                    ⚙
+                    Settings
                 </button>
             </header>
 
@@ -562,13 +562,21 @@ export default function App() {
 
                         {status && (
                             <div className="status-detail">
-                                <div>Uptime: {status.server.uptimeSeconds}s</div>
-                                <div>Priced items: {status.database.itemCount}</div>
                                 <div>
-                                    Pluto last poll:{" "}
-                                    {status.pluto.lastPollAt
-                                        ? `${Math.round((Date.now() - status.pluto.lastPollAt) / 1000)}s ago`
-                                        : "never this session"}
+                                    <span>Uptime</span>
+                                    <b>{status.server.uptimeSeconds}s</b>
+                                </div>
+                                <div>
+                                    <span>Priced items</span>
+                                    <b>{status.database.itemCount}</b>
+                                </div>
+                                <div>
+                                    <span>Pluto last poll</span>
+                                    <b>
+                                        {status.pluto.lastPollAt
+                                            ? `${Math.round((Date.now() - status.pluto.lastPollAt) / 1000)}s ago`
+                                            : "never this session"}
+                                    </b>
                                 </div>
                             </div>
                         )}
@@ -631,7 +639,7 @@ export default function App() {
                         <div className="drawer-header">
                             <span>Settings</span>
                             <button className="icon-btn" onClick={() => setSettingsOpen(false)}>
-                                ✕
+                                Close
                             </button>
                         </div>
 

@@ -1,110 +1,284 @@
+/* OpenMarket - redesigned 2026-09-28 to share StarChart's (OpenTools')
+   design identity: warm amber on near-black, cut-corner shapes, League
+   Gothic headings + Rajdhani body, uppercase tracked labels, soft glows.
+
+   SHAPE TECHNIQUE (read before editing any framed surface): a framed
+   element is an UNCLIPPED host with two clipped pseudo-elements -
+   ::before is the border-coloured outer shape (var(--bd), may be a
+   gradient), ::after is the inset fill (var(--fill)). The host itself is
+   not clipped, so box-shadow / filter: drop-shadow / outline still work on
+   it and follow the notched shape (clip-path on the host would clip them
+   away). The fill MUST be opaque or the border colour bleeds through it.
+   Glows are for hover/focus only - never an always-on filter per row
+   (a page holds 40 rows; keep it cheap).
+
+   Fonts are bundled locally (public/fonts, see LICENSE.md there) so the
+   app keeps working fully offline. Every class/ID below is referenced by
+   app.js - restyle freely, but don't rename. */
+
+@font-face {
+    font-family: "Rajdhani";
+    src: url("/fonts/Rajdhani-500.woff2") format("woff2");
+    font-weight: 500;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Rajdhani";
+    src: url("/fonts/Rajdhani-600.woff2") format("woff2");
+    font-weight: 600;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Rajdhani";
+    src: url("/fonts/Rajdhani-700.woff2") format("woff2");
+    font-weight: 700;
+    font-display: swap;
+}
+@font-face {
+    font-family: "League Gothic";
+    src: url("/fonts/LeagueGothic-400.woff2") format("woff2");
+    font-weight: 400;
+    font-display: swap;
+}
+
 :root {
-    --bg: #12141a;
-    --panel: #1b1e27;
-    --border: #2a2e3a;
-    --text: #e4e6eb;
-    --muted: #8b8fa3;
-    --accent: #4fc3f7;
-    --buy: #43a047;
-    --sell: #e53935;
+    color-scheme: dark;
+    --bg: #101214;
+    --bg-2: #14171a;
+    --panel: #191c20;
+    --panel-hover: #23272e;
+    --text: #e9e4d8;
+    --muted: #9c968a;
+    --dim: #6a6f76;
+    --accent: #e0a339;
+    --accent-hover: #f2bd5c;
+    --accent-dim: #8a6626;
+    --accent-glow: rgba(224, 163, 57, 0.4);
+    --border: #333840;
+    --border-light: #525a66;
+    --buy: #e0a339;
+    --sell: #d9534f;
+    --ok: #6fbf73;
+    --danger: #d9534f;
+    --rarity-common: #c9c9c9;
+    --rarity-uncommon: #5fbf5f;
+    --rarity-rare: #e0c040;
+    --rarity-legendary: #e0622f;
+    --font-heading: "League Gothic", "Rajdhani", sans-serif;
+    --font-body: "Rajdhani", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 * { box-sizing: border-box; }
 
+html { scrollbar-gutter: stable; }
+
 body {
     margin: 0;
-    background: var(--bg);
+    background:
+        radial-gradient(900px 320px at 50% -80px, rgba(224, 163, 57, 0.07), transparent 70%),
+        var(--bg);
+    background-repeat: no-repeat;
     color: var(--text);
-    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--font-body);
+    font-size: 1.05rem;
+    font-weight: 500;
+    -webkit-font-smoothing: antialiased;
 }
 
-header {
-    padding: 24px 20px 12px;
-    max-width: 900px;
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-light) var(--bg);
+}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border-light); }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ---- Cut-corner shape (see header comment) ------------------------------
+   :where() (zero specificity) so any later per-element rule can override
+   --cut/--bd/--fill without a specificity fight. */
+:where(.panel, .field, .filter-btn, .btn, .rank-btn, .mod-row, .owned-rank-row, .slot-badge, .toast, .icon-preview) {
+    --cut: 10px;
+    --ci: calc(var(--cut) - 0.586px); /* keeps the diagonal border a true 1px */
+    --bd: var(--border);
+    --fill: var(--panel);
+    position: relative;
+    isolation: isolate;
+    background: none;
+    border: 0;
+    border-radius: 0;
+}
+
+:where(.panel, .field, .filter-btn, .btn, .rank-btn, .mod-row, .owned-rank-row, .slot-badge, .toast, .icon-preview)::before,
+:where(.panel, .field, .filter-btn, .btn, .rank-btn, .mod-row, .owned-rank-row, .slot-badge, .toast, .icon-preview)::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+}
+
+:where(.panel, .field, .filter-btn, .btn, .rank-btn, .mod-row, .owned-rank-row, .slot-badge, .toast, .icon-preview)::before {
+    inset: 0;
+    background: var(--bd);
+    clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
+}
+
+:where(.panel, .field, .filter-btn, .btn, .rank-btn, .mod-row, .owned-rank-row, .slot-badge, .toast, .icon-preview)::after {
+    inset: 1px;
+    background: var(--fill);
+    clip-path: polygon(0 0, calc(100% - var(--ci)) 0, 100% var(--ci), 100% 100%, var(--ci) 100%, 0 calc(100% - var(--ci)));
+}
+
+/* ---- Header ------------------------------------------------------------- */
+.app-header {
+    max-width: 1180px;
     margin: 0 auto;
+    padding: 1.6rem 2rem 0.4rem;
 }
 
 .title-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 6px;
+    gap: 0.9rem;
+    margin-bottom: 0.4rem;
 }
 
-/* The source image is 711x505 (roughly 1.4:1, not square) - object-fit:
-   cover on a fixed square box crops the wider dimension down to a clean
-   1:1 logo instead of stretching/distorting it. */
 .logo {
-    width: 36px;
-    height: 36px;
-    object-fit: cover;
-    border-radius: 6px;
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 8px var(--accent-glow));
 }
 
-h1 { margin: 0; font-size: 1.6rem; }
+h1 {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 2.7rem;
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #fff;
+}
 
 .subtitle {
     color: var(--muted);
-    font-size: 0.85rem;
-    line-height: 1.4;
+    font-size: 0.98rem;
+    line-height: 1.45;
     margin: 0;
+    max-width: 78ch;
 }
 
-.subtitle a { color: var(--accent); }
+.subtitle a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--accent-dim);
+}
+.subtitle a:hover { color: var(--accent-hover); }
 
 main {
-    max-width: 1100px;
+    max-width: 1180px;
     margin: 0 auto;
-    padding: 12px 20px 40px;
+    padding: 0.9rem 2rem 3rem;
+}
+
+/* ---- Controls panel ----------------------------------------------------- */
+.panel {
+    --cut: 16px;
+    padding: 1rem 1.2rem;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
+}
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    margin-bottom: 1rem;
 }
 
 .toolbar {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 0.6rem 0.9rem;
     align-items: center;
-    margin-bottom: 12px;
 }
 
-#search {
-    flex: 1 1 240px;
-    padding: 10px 12px;
-    font-size: 1rem;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
+/* Search / select wrapper: a cut host around a bare input (an <input>
+   can't take pseudo-elements itself). Amber border + glow on hover/focus. */
+.field {
+    --cut: 8px;
+    --fill: var(--bg-2);
+    display: inline-flex;
+    align-items: center;
+    transition: filter 0.2s ease;
+}
+.field:hover { --bd: var(--accent); }
+.field:focus-within {
+    --bd: var(--accent);
+    filter: drop-shadow(0 0 1px var(--accent)) drop-shadow(0 0 5px var(--accent-glow));
+}
+.field-grow { flex: 1 1 260px; }
+
+.field input,
+.field select {
+    width: 100%;
+    background: transparent;
+    border: 0;
+    outline: 0;
     color: var(--text);
+    font-family: var(--font-body);
+    font-size: 1.05rem;
+    font-weight: 500;
+    padding: 0.5rem 0.9rem;
 }
+.field input::placeholder { color: var(--dim); }
 
+.field select {
+    appearance: none;
+    cursor: pointer;
+    padding-right: 2.2rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.92rem;
+    font-weight: 700;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%239c968a' stroke-width='2'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.8rem center;
+}
+.field select option { background: var(--panel); color: var(--text); text-transform: none; }
+
+/* Filter groups: a row of tab-like cut buttons. The active one is filled
+   amber with dark text and carries the glow. */
 .filter-group {
     display: flex;
-    gap: 4px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 3px;
+    flex-wrap: wrap;
+    gap: 0.4rem;
 }
 
 .filter-btn {
-    border: none;
-    background: transparent;
-    color: var(--muted);
-    padding: 6px 10px;
-    font-size: 0.8rem;
-    border-radius: 6px;
+    --cut: 6px;
+    padding: 0.28rem 0.95rem;
     cursor: pointer;
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    transition: color 0.15s ease, filter 0.2s ease;
 }
-
-.filter-btn:hover { color: var(--text); }
-
+.filter-btn:hover { --bd: var(--border-light); color: var(--text); }
+.filter-btn:focus-visible {
+    outline: none;
+    --bd: var(--accent);
+    color: var(--text);
+    filter: drop-shadow(0 0 1px var(--accent)) drop-shadow(0 0 5px var(--accent-glow));
+}
 .filter-btn.active {
-    background: var(--accent);
-    color: #0a0e14;
-    font-weight: 600;
-}
-
-.toolbar-secondary {
-    margin-top: -2px;
+    --bd: var(--accent);
+    --fill: var(--accent);
+    color: #101214;
+    filter: drop-shadow(0 0 6px var(--accent-glow));
 }
 
 /* Rarity/era filter groups are hidden entirely outside their matching
@@ -116,32 +290,17 @@ main {
     display: none;
 }
 
-#sort-select {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    color: var(--text);
-    border-radius: 8px;
-    padding: 6px 10px;
-    font-size: 0.8rem;
-}
-
+/* ---- Status row --------------------------------------------------------- */
 .status-row {
     display: flex;
-    align-items: baseline;
-    gap: 10px;
-    margin-bottom: 8px;
-}
-
-.btn-refresh-prices {
-    margin-left: auto;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    color: var(--text);
+    align-items: center;
+    gap: 0.9rem;
+    margin-bottom: 0.7rem;
 }
 
 .status {
     color: var(--muted);
-    font-size: 0.85rem;
+    font-size: 0.98rem;
     min-height: 1.2em;
 }
 
@@ -151,75 +310,91 @@ main {
    values trickling in doesn't read as broken/stuck. */
 .price-loading {
     color: var(--accent);
-    font-size: 0.8rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
     animation: price-loading-pulse 1.4s ease-in-out infinite;
 }
-
-.price-loading[hidden] {
-    display: none;
-}
+.price-loading[hidden] { display: none; }
 
 @keyframes price-loading-pulse {
     0%, 100% { opacity: 0.5; }
     50% { opacity: 1; }
 }
 
-.mod-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+/* ---- Buttons ------------------------------------------------------------ */
+.btn {
+    --cut: 8px;
+    padding: 0.32rem 1.15rem;
+    cursor: pointer;
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text);
+    transition: color 0.18s ease, filter 0.2s ease;
 }
+.btn:hover:not(:disabled) {
+    --bd: var(--accent);
+    --fill: var(--panel-hover);
+    color: var(--accent);
+    filter: drop-shadow(0 0 6px var(--accent-glow));
+}
+.btn:focus-visible {
+    outline: none;
+    --bd: var(--accent);
+    filter: drop-shadow(0 0 1px var(--accent)) drop-shadow(0 0 5px var(--accent-glow));
+}
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Buy = the primary (amber) action, Sell = a red-outlined one. */
+.btn-buy { --bd: var(--accent); --fill: var(--accent); color: #101214; }
+.btn-buy:hover:not(:disabled) { --bd: var(--accent-hover); --fill: var(--accent-hover); color: #101214; }
+.btn-sell { --bd: #7a2f2d; --fill: #241213; color: #ff8c88; }
+.btn-sell:hover:not(:disabled) { --bd: var(--sell); --fill: #2e1415; color: #ffb0ac; filter: drop-shadow(0 0 6px rgba(217, 83, 79, 0.45)); }
+
+.btn-refresh-prices { margin-left: auto; }
+.btn-page:disabled { opacity: 0.35; }
 
 /* A Prime set's own Sell button slot is repurposed into this dropdown
    toggle (its parts row can't be sold as a unit - see app.js) - neutral
    styling so it doesn't read as another Buy/Sell action. */
-.btn-toggle-parts {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    color: var(--text);
-}
+.btn-toggle-parts { --bd: var(--border-light); --fill: var(--bg-2); color: var(--text); }
+.btn-toggle-parts:hover:not(:disabled) { --fill: var(--panel-hover); }
 
-.btn-toggle-parts:hover { border-color: var(--accent); }
-
-/* Nested part rows under an expanded Prime set - indented under the
-   set's icon column so they read as children of it, not siblings. */
-.set-children {
+/* ---- Item rows / cards -------------------------------------------------- */
+.mod-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    margin-left: 40px;
-}
-
-.set-children[hidden] {
-    display: none;
-}
-
-.mod-list.grid-view > .set-children {
-    grid-column: 1 / -1;
-    flex-direction: row;
-    flex-wrap: wrap;
-    margin-left: 0;
-}
-
-.mod-list.grid-view > .set-children .mod-row {
-    width: 130px;
+    gap: 0.5rem;
 }
 
 .mod-row {
+    --cut: 10px;
     display: grid;
     grid-template-columns: 72px 1fr 90px auto auto;
     align-items: center;
-    gap: 10px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 12px;
+    gap: 0.8rem;
+    padding: 0.55rem 1rem 0.55rem 0.8rem;
+    transition: filter 0.2s ease;
 }
+/* Hover-only glow - never always-on (see header comment). */
+.mod-row:hover { --bd: var(--accent-dim); filter: drop-shadow(0 0 6px rgba(224, 163, 57, 0.22)); }
+
+/* Mods/arcanes carry a rarity (data-rarity, set in app.js): tint the
+   border a little so rarity reads at a glance without shouting. */
+.mod-row[data-rarity="common"] { --bd: color-mix(in srgb, var(--rarity-common) 42%, var(--border)); }
+.mod-row[data-rarity="uncommon"] { --bd: color-mix(in srgb, var(--rarity-uncommon) 48%, var(--border)); }
+.mod-row[data-rarity="rare"] { --bd: color-mix(in srgb, var(--rarity-rare) 52%, var(--border)); }
+.mod-row[data-rarity="legendary"] { --bd: color-mix(in srgb, var(--rarity-legendary) 58%, var(--border)); }
+.mod-row[data-rarity]:hover { --bd: var(--accent); }
 
 .icon-wrap {
     position: relative;
     width: 64px;
     height: 64px;
+    background: radial-gradient(circle at 50% 42%, rgba(224, 163, 57, 0.1), transparent 70%);
 }
 
 .mod-icon {
@@ -231,30 +406,27 @@ main {
 /* Small category badge (Blueprint/Neuroptics/Chassis/Systems) pinned to
    the icon's bottom-right corner, Prime parts only. */
 .slot-badge {
+    --cut: 5px;
+    --fill: var(--bg);
     position: absolute;
     bottom: -3px;
     right: -3px;
     width: 30px;
     height: 30px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
 }
-
 .slot-badge svg {
     width: 20px;
     height: 20px;
     fill: var(--accent);
 }
-
-/* Same author-vs-UA-default [hidden] override the rank-stepper needed -
-   see that rule's comment below for why this is necessary at all. */
-.slot-badge[hidden] {
-    display: none;
-}
+/* Author styles always beat the UA default [hidden] { display: none }
+   regardless of specificity, so every element that sets `display` needs
+   its own explicit [hidden] override (this, .rank-stepper, .set-children,
+   .owned-ranks-list, .icon-preview, .price-loading). */
+.slot-badge[hidden] { display: none; }
 
 .mod-info {
     display: flex;
@@ -264,7 +436,9 @@ main {
 }
 
 .mod-name {
-    font-size: 0.95rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -273,9 +447,12 @@ main {
 /* No explicit `display` here - unlike .rank-stepper/.slot-badge, this
    never fights the UA default [hidden] rule, so no override needed. */
 .owned-count {
-    font-size: 0.72rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
     color: var(--muted);
 }
+.owned-count.none { color: var(--sell); }
 
 /* Shared by .mod-price/.owned-count/.owned-rank-price - a "?" means the
    fetch itself failed (not a real "no price"/"no data" answer), so it's
@@ -286,134 +463,116 @@ main {
     text-decoration: underline dotted;
 }
 
-.owned-count.none {
-    color: var(--sell);
-}
-
-/* No explicit `display` here either - a <button> with only text content
-   and no display override doesn't fight [hidden], same reasoning as
-   .owned-count above. */
 .owned-ranks-toggle {
     background: none;
     border: none;
     color: var(--accent);
-    font-size: 0.72rem;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
     padding: 0;
     text-align: left;
     cursor: pointer;
     width: fit-content;
 }
-
-.owned-ranks-toggle:hover {
-    text-decoration: underline;
-}
-
-/* Nested "you own N at rank X" rows under an expanded mod/arcane row -
-   built dynamically in app.js (not from the row template), inserted as
-   a sibling right after .mod-row, same pattern .set-children uses for
-   Prime set parts. In List view this is a plain indented column; Grid
-   view needs the same span-full-width-then-wrap treatment .set-children
-   already gets below, since a direct child of a CSS Grid container
-   otherwise becomes its own ~130px grid cell instead of a normal block. */
-.owned-ranks-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin: -2px 0 0 40px;
-}
-
-.owned-ranks-list[hidden] {
-    display: none;
-}
-
-.mod-list.grid-view > .owned-ranks-list {
-    grid-column: 1 / -1;
-    flex-direction: row;
-    flex-wrap: wrap;
-    margin-left: 0;
-}
-
-.owned-rank-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 6px 10px;
-    font-size: 0.8rem;
-}
-
-.mod-list.grid-view > .owned-ranks-list .owned-rank-row {
-    width: 220px;
-}
-
-.owned-rank-label {
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-.owned-rank-price {
-    color: var(--accent);
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-}
-
-.owned-rank-row .btn-buy,
-.owned-rank-row .btn-sell {
-    padding: 4px 10px;
-    font-size: 0.75rem;
-}
-
-.rank-stepper {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-/* Author styles always beat the UA default [hidden] { display: none }
-   regardless of specificity - without this override, a hidden stepper
-   (items with no rank/refinement) would show anyway. Latent since the
-   rank feature was added; never caught because every row tested until
-   Prime Parts happened to legitimately need a visible stepper. */
-.rank-stepper[hidden] {
-    display: none;
-}
-
-.rank-btn {
-    width: 18px;
-    height: 18px;
-    line-height: 1;
-    padding: 0;
-    border: 1px solid var(--border);
-    background: var(--bg);
-    color: var(--muted);
-    border-radius: 4px;
-    font-size: 0.8rem;
-    cursor: pointer;
-}
-
-.rank-btn:hover { color: var(--text); }
-.rank-btn:disabled { opacity: 0.3; cursor: default; }
-
-.rank-value {
-    font-size: 0.72rem;
-    color: var(--muted);
-    min-width: 46px;
-}
+.owned-ranks-toggle:hover { color: var(--accent-hover); text-decoration: underline; }
 
 .mod-price {
     text-align: right;
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    letter-spacing: 0.04em;
     font-variant-numeric: tabular-nums;
     color: var(--accent);
 }
 
-/* Grid view: same row markup, re-laid-out as a card via CSS only - no
-   DOM rebuild needed when toggling. */
+/* ---- Rank / refinement stepper ------------------------------------------ */
+.rank-stepper {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.rank-stepper[hidden] { display: none; }
+
+.rank-btn {
+    --cut: 4px;
+    --fill: var(--bg-2);
+    width: 22px;
+    height: 22px;
+    line-height: 1;
+    padding: 0;
+    color: var(--muted);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.rank-btn:hover:not(:disabled) { --bd: var(--accent); color: var(--accent); }
+.rank-btn:disabled { opacity: 0.3; cursor: default; }
+
+.rank-value {
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    min-width: 58px;
+    text-align: center;
+}
+
+/* ---- Nested rows: Prime set parts + per-rank owned copies --------------- */
+.set-children {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-left: 40px;
+}
+.set-children[hidden] { display: none; }
+
+/* Built dynamically in app.js (not from the row template), inserted as a
+   sibling right after .mod-row, same pattern .set-children uses for Prime
+   set parts. In List view this is a plain indented column; Grid view needs
+   the same span-full-width-then-wrap treatment .set-children gets, since a
+   direct child of a CSS Grid container otherwise becomes its own grid cell. */
+.owned-ranks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin: -2px 0 0 40px;
+}
+.owned-ranks-list[hidden] { display: none; }
+
+.owned-rank-row {
+    --cut: 6px;
+    --fill: var(--bg-2);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.35rem 0.8rem;
+    font-size: 0.95rem;
+}
+.owned-rank-label { flex: 1 1 auto; min-width: 0; font-weight: 600; }
+.owned-rank-price {
+    color: var(--accent);
+    font-family: var(--font-heading);
+    font-size: 1.15rem;
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.owned-rank-row .btn-buy,
+.owned-rank-row .btn-sell {
+    --cut: 6px;
+    padding: 0.15rem 0.8rem;
+    font-size: 0.95rem;
+}
+
+/* ---- Grid view: same row markup, re-laid-out as a card via CSS only ----- */
 .mod-list.grid-view {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+    gap: 0.75rem;
 }
 
 .grid-view .mod-row {
@@ -422,122 +581,92 @@ main {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    gap: 6px;
-    padding: 14px 8px;
+    gap: 0.4rem;
+    padding: 0.9rem 0.6rem 0.8rem;
 }
 
 .grid-view .icon-wrap,
-.grid-view .mod-icon {
-    width: 96px;
-    height: 96px;
-}
+.grid-view .mod-icon { width: 96px; height: 96px; }
+.grid-view .slot-badge { width: 36px; height: 36px; }
+.grid-view .slot-badge svg { width: 24px; height: 24px; }
 
-.grid-view .slot-badge {
-    width: 36px;
-    height: 36px;
-}
-
-.grid-view .slot-badge svg {
-    width: 24px;
-    height: 24px;
-}
-
-.grid-view .mod-info {
-    align-items: center;
-    width: 100%;
-}
-
-.grid-view .mod-name {
-    font-size: 0.85rem;
-    line-height: 1.25;
-    white-space: normal;
-}
-
+.grid-view .mod-info { align-items: center; width: 100%; }
+.grid-view .mod-name { font-size: 1rem; line-height: 1.2; white-space: normal; }
 .grid-view .rank-stepper { justify-content: center; }
-
 .grid-view .mod-price { text-align: center; }
 
+.mod-list.grid-view > .set-children,
+.mod-list.grid-view > .owned-ranks-list {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-left: 0;
+}
+.mod-list.grid-view > .set-children .mod-row { width: 158px; }
+.mod-list.grid-view > .owned-ranks-list .owned-rank-row { width: 240px; }
+
+/* ---- Pagination --------------------------------------------------------- */
 .pagination {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 14px;
-    margin-top: 16px;
+    gap: 1rem;
+    margin-top: 1.2rem;
 }
-
-.btn-page {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    color: var(--text);
-}
-
-.btn-page:disabled { opacity: 0.35; cursor: default; }
 
 #page-indicator {
     color: var(--muted);
-    font-size: 0.85rem;
-    min-width: 90px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    min-width: 120px;
     text-align: center;
 }
 
-.btn {
-    border: none;
-    border-radius: 6px;
-    padding: 6px 12px;
-    font-size: 0.85rem;
-    cursor: pointer;
-    color: white;
-}
-
-.btn:disabled { opacity: 0.5; cursor: default; }
-
-.btn-buy { background: var(--buy); }
-.btn-sell { background: var(--sell); }
-
+/* ---- Toasts ------------------------------------------------------------- */
 #toast-container {
     position: fixed;
-    bottom: 16px;
-    right: 16px;
+    bottom: 1rem;
+    right: 1rem;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 0.5rem;
     z-index: 10;
 }
 
 .toast {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-size: 0.85rem;
-    max-width: 320px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    --cut: 10px;
+    padding: 0.65rem 1.1rem;
+    font-size: 1rem;
+    font-weight: 600;
+    max-width: 340px;
+    filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.55));
 }
-
-.toast.ok { border-color: var(--buy); }
-.toast.err { border-color: var(--sell); }
+.toast.ok { --bd: var(--ok); }
+.toast.err { --bd: var(--danger); }
 
 /* Larger icon preview shown on hover, positioned via JS to follow the
    cursor (see app.js's attachIconPreview). pointer-events:none so it
    never intercepts the mouse events that would hide it. */
 .icon-preview {
+    --cut: 12px;
+    --bd: var(--accent-dim);
     position: fixed;
     z-index: 30;
     pointer-events: none;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    padding: 0.6rem;
+    filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.6));
 }
-
-.icon-preview[hidden] {
-    display: none;
-}
+.icon-preview[hidden] { display: none; }
 
 .icon-preview img {
     display: block;
     width: 220px;
     height: 220px;
     object-fit: contain;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001s !important; transition-duration: 0.001s !important; }
 }

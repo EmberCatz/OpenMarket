@@ -822,6 +822,10 @@ function renderRow(item) {
     const stepperPlus = row.querySelector(".rank-plus");
     const ownedEl = row.querySelector(".owned-count");
 
+    // Styling hooks only (style.css tints the border by rarity).
+    row.dataset.type = item.type;
+    if (item.rarity) row.dataset.rarity = item.rarity;
+
     if (item.icon) setIconSrc(icon, item.icon);
     icon.alt = item.name;
     name.textContent = item.name;

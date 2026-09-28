@@ -513,6 +513,59 @@ Pluto script or a real SpaceNinjaServer, so SNS failures/slow responses and
 the in-game side stay untested; `price: 0` orders are still accepted (this is
 a self-grant tool with no real economy).
 
+### Redesign to StarChart's design identity (2026-09-28)
+
+The web app (`public/`) and the launcher (`launcher/src/`) were restyled to
+share the design identity of the user's other companion app, StarChart
+(OpenTools): warm amber (`#e0a339`) on near-black, cut-corner shapes,
+League Gothic headings + Rajdhani body text, uppercase tracked labels,
+soft amber glows on hover/focus. Source of truth for the language is
+OpenTools' `design-preview/` and `app/src/App.css`; this is the same
+system, ported. **Behaviour is unchanged** - every class and ID `app.js`
+and `App.tsx` rely on is kept.
+
+Things worth knowing before touching the CSS:
+
+- **Shape technique.** A framed element (panel, button, row, chip, toast...)
+  is an UNCLIPPED host with two clipped pseudo-elements: `::before` is the
+  border-coloured outer shape (`--bd`), `::after` the inset fill (`--fill`,
+  must be opaque). Because the host isn't clipped, `filter: drop-shadow`
+  glows follow the notched outline. Glows are hover/focus only - never an
+  always-on filter per row (a page holds 40 rows).
+- **The shared shape rule uses `:where()`, not `:is()`.** With `:is()`, one
+  member such as `.secondary-actions button` (specificity 0,1,1) raised the
+  whole rule above `.launch-btn`/`.save-btn`/`.chip-ok`, silently overriding
+  their `--fill`/`--bd` - the primary buttons rendered dark. Caught in the
+  browser, not by the compiler.
+- **Fonts are bundled locally** (Rajdhani 500/600/700 + League Gothic, latin
+  woff2, in `public/fonts/` and `launcher/src/assets/fonts/`, both SIL OFL -
+  see the `LICENSE.md` beside them) instead of loading Google Fonts, so the
+  app keeps its offline-first guarantee. OpenTools' brand font (Exwayer) is
+  deliberately NOT bundled: its licence is unknown and this repo is public,
+  so the wordmark uses League Gothic instead.
+- **Two hotlinks removed.** The header logo and favicon used to be loaded
+  from warframe.com / wiki.warframe.com (a network dependency in an app
+  documented as offline). Both are now the local `assets/logo.png`.
+- **Rarity tint.** `app.js` sets `data-type` / `data-rarity` on each row
+  (styling hook only) so mods/arcanes get a rarity-coloured border.
+- **Markup changes:** the controls sit in one `.panel.controls`, the search
+  and sort inputs are wrapped in `.field` (an `<input>` can't take
+  pseudo-elements), the launcher's settings gear is a "Settings" text button,
+  and the launcher's status readout is label/value rows.
+- README screenshots (`media/sc_list_view_all.png`, `sc_grid_view_prime.png`,
+  `launcher_sc.png`) were regenerated. The launcher one is the built UI with a
+  stubbed Tauri backend (no real Tauri window in the dev environment); the web
+  ones are the real app against a scratch server with a small fake inventory.
+
+Verified in a browser at the launcher's real window size (900x640) and the
+web app at ~1100 px: list and grid views, Prime set + parts, ranked-copies
+dropdown, toasts, all filter/sort controls, settings drawer, help tab,
+update/notice banners. **Not verified**: the packaged Tauri window
+(WebView2) itself, Linux/Steam Deck rendering, very narrow browser widths.
+Needs a launcher rebuild to reach users; the web app updates with a
+`public/` update.
+
+
 ## Probe scripts
 
 Optional one-shot diagnostics in **`scripts/probes/`** (moved out of

@@ -4,13 +4,13 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>OpenMarket</title>
-<link rel="icon" type="image/png" href="https://wiki.warframe.com/images/thumb/PlatinumLarge.png/300px-PlatinumLarge.png?f57e3" />
+<link rel="icon" type="image/png" href="assets/logo.png" />
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-<header>
+<header class="app-header">
     <div class="title-row">
-        <img class="logo" src="https://www-static.warframe.com/images/purchase/currency/plat-10120.png" alt="" />
+        <img class="logo" src="assets/logo.png" alt="" />
         <h1>OpenMarket</h1>
     </div>
     <p class="subtitle">
@@ -20,8 +20,9 @@
 </header>
 
 <main>
+    <div class="panel controls">
     <div class="toolbar">
-        <input id="search" type="text" placeholder="Search mods, arcanes, relics, primes..." autocomplete="off" />
+        <label class="field field-grow"><input id="search" type="text" placeholder="Search mods, arcanes, relics, primes..." autocomplete="off" /></label>
         <div id="type-filter" class="filter-group" role="group" aria-label="Filter by type">
             <button class="filter-btn active" data-type="all">All</button>
             <button class="filter-btn" data-type="mod">Mods</button>
@@ -36,7 +37,7 @@
     </div>
 
     <div class="toolbar toolbar-secondary">
-        <select id="sort-select" aria-label="Sort by">
+        <label class="field"><select id="sort-select" aria-label="Sort by">
             <option value="default">Sort: Default</option>
             <option value="name-asc">Name (A-Z)</option>
             <option value="name-desc">Name (Z-A)</option>
@@ -45,7 +46,7 @@
             <option value="owned-asc">Owned (Low-High)</option>
             <option value="price-asc">Price (Low-High)</option>
             <option value="price-desc">Price (High-Low)</option>
-        </select>
+        </select></label>
         <div id="owned-filter" class="filter-group" role="group" aria-label="Filter by ownership">
             <button class="filter-btn active" data-owned="all">All</button>
             <button class="filter-btn" data-owned="owned">Owned</button>
@@ -66,6 +67,7 @@
             <button class="filter-btn" data-era="axi">Axi</button>
             <button class="filter-btn" data-era="requiem">Requiem</button>
         </div>
+    </div>
     </div>
 
     <div class="status-row">
