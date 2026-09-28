@@ -54,3 +54,5 @@ shipped (e.g. `v1.3.1.md`) and create a fresh `unreleased.md` — see
   fresh install. **Needs a launcher rebuild/release** to reach users
   (frontend-only change, `launcher/src/App.tsx` + `lib/config.ts`). See
   DEVLOG.md.
+
+- **Launcher: version shown in the header** ("OpenMarket Launcher v1.3.0"), so a bug report can name the exact build. Same launcher-rebuild note as above; `launcher/src/App.tsx` + `App.css`.

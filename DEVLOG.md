@@ -735,6 +735,10 @@ it again. **Not verified inside the real Tauri shell** - the stub follows the
 installed plugin's invoke protocol, but the packaged app itself wasn't run.
 Needs a launcher rebuild to reach users.
 
+The header also shows the launcher's own version next to the title now (from
+Tauri's `getVersion()`, the same value "Check for Issues" compares the
+server against). Verified in the same stubbed-browser setup.
+
 ### Releases and auto-update
 
 Tagged releases (`v*`) build via GitHub Actions

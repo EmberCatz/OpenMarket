@@ -67,6 +67,7 @@ export default function App() {
     const [diagChecking, setDiagChecking] = useState(false);
     const [diagResult, setDiagResult] = useState<{ ok: boolean; message: string } | null>(null);
     const [updateNotice, setUpdateNotice] = useState<DataUpdateNotice | null>(null);
+    const [appVersion, setAppVersion] = useState<string | null>(null);
 
     const autoOpenPending = useRef(false);
     const logEndRef = useRef<HTMLDivElement>(null);
@@ -106,6 +107,15 @@ export default function App() {
                 /* offline or endpoint unreachable - not worth surfacing as an error */
             });
     }, [configLoaded]);
+
+    // --- Shown next to the title so a support report can say exactly which
+    // build it is (the same version "Check for Issues" compares the server
+    // against). Silent on failure - the header just shows no version. ---
+    useEffect(() => {
+        getVersion()
+            .then(setAppVersion)
+            .catch(() => {});
+    }, []);
 
     // --- After the launcher itself was updated (auto-updater, or a manual
     // reinstall over the top), remind the user that data isn't refreshed
@@ -417,7 +427,10 @@ export default function App() {
     return (
         <div className="app">
             <header className="topbar">
-                <span className="brand">OpenMarket Launcher</span>
+                <span className="brand">
+                    OpenMarket Launcher{" "}
+                    {appVersion && <span className="version">v{appVersion}</span>}
+                </span>
                 <button className="icon-btn" onClick={() => setSettingsOpen(true)} title="Settings">
                     ⚙
                 </button>
