@@ -24,3 +24,14 @@ shipped (e.g. `v1.3.1.md`) and create a fresh `unreleased.md` — see
   `server/wfcd-icon-map.json`), not a runtime dependency. Needs a
   `server/` update (new files + `npm install`) to reach a running
   instance, no launcher rebuild. See DEVLOG.md for the full writeup.
+
+- **Fixed: Owned tab empty until page reload / before login.** The script
+  polled `inventory.php` before the game logged in (SNS 500 "missing
+  accountId", every 5s) - it now waits quietly for login, and also checks
+  the snapshot POST's HTTP status. The frontend no longer caches the
+  owned map for the whole session (5s reuse, refetch after) and shows an
+  "Inventory not received yet" hint when the server has no snapshot.
+  Needs a `server/`-side update? No - only `public/app.js` and
+  `scripts/Market Sync.pluto` changed; existing installs must delete and
+  re-Install the script (Install never overwrites). No launcher rebuild.
+  Script change unverified in-game. See BUGS.md / DEVLOG.md.

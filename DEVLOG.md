@@ -452,6 +452,30 @@ either way, labeled per-tab to match what players actually call that
 tier. **Relic era** (Lith/Meso/Neo/Axi/Requiem) shows only on the Relics
 tab. Switching tabs resets that tab's filter back to "All".
 
+### Owned tab empty after a reinstall (2026-09-28)
+
+A real user's Owned tab stayed empty. First theory (SpaceNinjaServer
+choking on inventory data bloated by web-UI admin grants) was **wrong** -
+his SNS console showed `Error: Request is missing accountId parameter`
+on `GET /api/inventory.php?&wsid=0`: `Market Sync.pluto` was fetching
+inventory before the game logged in, when `owf_get_auth_query()` returns
+an empty string (the URL literally has an empty auth section). SNS
+answers 500; the script retried every `INVENTORY_RETRY_MS` until login.
+Fixes:
+
+- **`Market Sync.pluto`**: `syncInventorySnapshot()` returns false with a
+  single "not logged in yet" log line while the auth query is empty (no
+  request sent). Also checks the snapshot POST's HTTP status (>= 400 or a
+  non-numeric status is a failure) - before, only "didn't throw" counted,
+  so a backend 400 looked like success. **Not run in-game** - the
+  empty-string behavior is evidenced by the user's SNS log, not a live test.
+- **`public/app.js`**: `ensureOwnedSummary()` no longer caches for the
+  whole session. It reuses a result for 5s (one `render()` asks twice,
+  filter + sort), then refetches; a failed fetch isn't timestamped so the
+  next render retries. When `/api/owned-summary` says `known: false`, the
+  status line now says the inventory hasn't arrived yet instead of just
+  showing an empty list. Verified on a scratch port with Playwright.
+
 ## Probe scripts
 
 Optional one-shot diagnostics in **`scripts/probes/`** (moved out of

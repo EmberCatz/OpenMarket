@@ -239,30 +239,49 @@ function getFilteredItems() {
 }
 
 // Bulk total-owned-per-item map (see routes.ts's /api/owned-summary) -
-// loaded lazily, once, the first time an owned-based filter or sort is
-// actually used, then kept for the rest of the session. All in-memory
-// data server-side (no external calls), so this is cheap even though it
-// covers the whole catalog at once - the alternative (resolving "am I
-// filtering out this item" per-row like price/owned-count already do)
-// doesn't work for a FILTER, which needs to know before deciding what's
-// even on the page.
+// loaded lazily the first time an owned-based filter or sort is actually
+// used. All in-memory data server-side (no external calls), so this is
+// cheap even though it covers the whole catalog at once - the alternative
+// (resolving "am I filtering out this item" per-row like price/owned-count
+// already do) doesn't work for a FILTER, which needs to know before
+// deciding what's even on the page.
+//
+// Reused for OWNED_SUMMARY_TTL_MS so one render() (filter + sort both ask)
+// costs one request, then refetched - this used to be cached for the whole
+// session, which meant an empty result fetched before Market Sync.pluto
+// had reported its first inventory snapshot (or a failed fetch) stuck the
+// Owned tab empty until a page reload, and bought/sold items never showed
+// up either.
+const OWNED_SUMMARY_TTL_MS = 5000;
 let ownedSummary = null;
+let ownedSummaryKnown = false; // server's `known`: has Market Sync.pluto ever reported inventory?
+let ownedSummaryFetchedAt = 0;
 let ownedSummaryPromise = null;
 
 function ensureOwnedSummary() {
-    if (ownedSummary) return Promise.resolve(ownedSummary);
+    if (ownedSummary && Date.now() - ownedSummaryFetchedAt < OWNED_SUMMARY_TTL_MS) {
+        return Promise.resolve(ownedSummary);
+    }
     if (!ownedSummaryPromise) {
         ownedSummaryPromise = fetch("/api/owned-summary")
             .then(res => res.json())
             .then(body => {
                 ownedSummary = body.owned || {};
+                ownedSummaryKnown = body.known === true;
+                ownedSummaryFetchedAt = Date.now();
                 return ownedSummary;
             })
             .catch(() => {
                 // Fail open - an unfiltered/unsorted-by-owned view is
-                // better than the whole page refusing to render.
+                // better than the whole page refusing to render. Not
+                // timestamped, so the next render retries.
                 ownedSummary = {};
+                ownedSummaryKnown = false;
+                ownedSummaryFetchedAt = 0;
                 return ownedSummary;
+            })
+            .finally(() => {
+                ownedSummaryPromise = null;
             });
     }
     return ownedSummaryPromise;
@@ -435,7 +454,13 @@ async function render() {
         attachOwnedRanksDisplay(row, item); // no-ops internally for non-rankable items
     });
 
-    setStatus(rows.length === 0 ? "No matches." : `${rows.length} item${rows.length === 1 ? "" : "s"} match.`);
+    let statusText = rows.length === 0 ? "No matches." : `${rows.length} item${rows.length === 1 ? "" : "s"} match.`;
+    // Owned filter/sort with no inventory snapshot yet: an empty list here
+    // means "nothing reported", not "you own nothing" - say so.
+    if ((ownedFilter !== "all" || sortMode === "owned-asc" || sortMode === "owned-desc") && !ownedSummaryKnown) {
+        statusText += " Inventory not received yet - make sure the game is logged in and Market Sync is running, then try again.";
+    }
+    setStatus(statusText);
 
     pageIndicatorEl.textContent = `Page ${currentPage} of ${totalPages}`;
     prevPageBtn.disabled = currentPage <= 1;

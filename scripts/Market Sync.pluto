@@ -200,7 +200,24 @@ end
 
 -- Returns true/false so the caller can retry soon after a failure instead
 -- of waiting a full INVENTORY_POLL_MS.
+local waitingForLoginLogged = false
+
+-- Before the game has logged in, owf_get_auth_query() has no accountId/
+-- nonce to give (confirmed 2026-09-28 from a real SpaceNinjaServer log:
+-- the request went out as "/api/inventory.php?&wsid=0" and SNS answered
+-- 500 "Request is missing accountId parameter"). Wait quietly instead of
+-- sending doomed requests every INVENTORY_RETRY_MS - log once, not per try.
 local function syncInventorySnapshot()
+    local authQuery = owf_get_auth_query()
+    if authQuery == nil or authQuery == "" then
+        if not waitingForLoginLogged then
+            print("Market Sync: not logged in yet, waiting before fetching inventory")
+            waitingForLoginLogged = true
+        end
+        return false
+    end
+    waitingForLoginLogged = false
+
     local ok, body, status = pcall(function()
         return http.request(snsUrl("/api/inventory.php", "wsid=0"), {
             method = "GET",
@@ -219,7 +236,7 @@ local function syncInventorySnapshot()
         return false
     end
 
-    local postOk, postErr = pcall(function()
+    local postOk, postErr, postStatus = pcall(function()
         return http.request(backendUrl("/internal/inventory-snapshot"), {
             method = "POST",
             headers = { ["Content-Type"] = "application/json" },
@@ -230,6 +247,10 @@ local function syncInventorySnapshot()
     end)
     if not postOk then
         print("Market Sync: failed to report inventory snapshot to backend - " .. tostring(postErr))
+        return false
+    end
+    if tonumber(postStatus) == nil or tonumber(postStatus) >= 400 then
+        print("Market Sync: backend rejected inventory snapshot (status=" .. tostring(postStatus) .. "), retrying in " .. (INVENTORY_RETRY_MS / 1000) .. "s")
         return false
     end
     return true
