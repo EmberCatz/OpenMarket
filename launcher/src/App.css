@@ -503,6 +503,81 @@ body {
     font-variant-numeric: tabular-nums;
 }
 
+/* ---- Icon download panel ------------------------------------------------ */
+.icon-panel {
+    gap: 8px;
+}
+.icon-panel > div {
+    border-bottom: 0;
+}
+.icon-panel-head {
+    align-items: center;
+    font-family: var(--font-heading);
+    font-size: 20px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text);
+}
+.icon-note {
+    display: block !important;
+    font-size: 14px;
+    line-height: 1.4;
+    color: var(--muted);
+}
+.icon-error {
+    color: #ff8c88;
+}
+.icon-panel > .progress {
+    display: block;
+    padding: 0;
+    border: 1px solid var(--border);
+}
+.progress {
+    height: 8px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+}
+.progress > i {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+    box-shadow: 0 0 10px var(--accent-glow);
+    transition: width 0.4s ease;
+}
+.btn-mini {
+    padding: 2px 14px;
+    cursor: pointer;
+    font-family: var(--font-heading);
+    font-size: 16px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid var(--border-light);
+    clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.btn-mini:hover:not(:disabled) {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+.btn-mini-primary {
+    color: #101214;
+    background: var(--accent);
+    border-color: var(--accent);
+}
+.btn-mini-primary:hover:not(:disabled) {
+    color: #101214;
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+.btn-mini:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
 /* ---- Help tab ----------------------------------------------------------- */
 .help {
     max-width: 640px;

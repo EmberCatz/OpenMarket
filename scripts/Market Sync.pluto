@@ -379,6 +379,54 @@ local function doSell(order)
     return true, nil
 end
 
+-- Pauses while an actual mission is active (2026-09-28, same idea as
+-- OpenTools Sync.pluto's 2026-09-25 change). http.request() is synchronous
+-- and blocking, and this script's inventory.php fetch is a heavy ~300KB
+-- call with a ~27% flake rate (multi-second retries) - landing mid-combat
+-- it risks a stutter, for data (Owned counts) and actions (a buy/sell click
+-- in the shop) that can wait until the mission ends. So while in a mission:
+-- no inventory sync, no order handling (orders just stay queued on the
+-- backend), and only a slow MISSION_HEARTBEAT_MS ping to the backend so
+-- the launcher/web app still show the script as alive (status.pluto.
+-- inMission) instead of "Disconnected". The moment the mission ends the
+-- inventory is re-synced immediately, so loot shows up in "Owned" at once.
+--
+-- The check is `gGameRules instanceof LotusGameRules` - the attested
+-- idiom (Complete Wave or Mission.pluto), and the one OpenTools settled on
+-- after a first version that used `IsNull(gGameRules)` proved WRONG (it read
+-- "in mission" in the orbiter, because gGameRules is a real non-null object
+-- there too, just a different class). IsNull() stays as a cheap first guard
+-- for the brief window gGameRules is unset during a region load. Known,
+-- accepted side effect: the Simulacrum uses a different class, so it counts
+-- as "not in a mission" and the script keeps running normally there.
+-- OpenTools confirmed mission entry/exit, dojo, relay and Cetus hub
+-- in-game; not tested there: Railjack, Duviri, open-world zones - and this
+-- script's own pause/resume prints below are NOT yet confirmed in-game.
+local MISSION_HEARTBEAT_MS = 10000 -- while paused for a mission: how often to tell the backend we're still alive
+
+local function isInActiveMission()
+    if IsNull(gGameRules) then
+        return false
+    end
+    return gGameRules instanceof LotusGameRules
+end
+
+-- Tells the backend we're alive and in a mission. The backend answers 204
+-- WITHOUT handing out an order (see routes.ts's /internal/pending-order),
+-- so nothing is ever executed mid-mission.
+local function sendMissionHeartbeat()
+    pcall(function()
+        return http.request(backendUrl("/internal/pending-order?inMission=1"), {
+            method = "GET",
+            dont_reuse = true,
+            dont_make_reusable = true,
+        })
+    end)
+end
+
+local pausedForMission = false
+local lastMissionHeartbeat = 0
+
 print("Market Sync: started, polling " .. backendUrl("/internal/pending-order") .. " every " .. POLL_MS .. "ms")
 
 local lastPoll = os.millis()
@@ -386,13 +434,30 @@ local nextInventoryAttempt = 0 -- 0 forces an immediate first attempt
 
 repeat
     local now = os.millis()
+    local inMission = isInActiveMission()
 
-    if now >= nextInventoryAttempt then
+    if inMission then
+        if not pausedForMission then
+            print("Market Sync: active mission detected, pausing order handling and inventory sync until it ends")
+            pausedForMission = true
+            lastMissionHeartbeat = 0 -- heartbeat right away so the backend learns we're in a mission
+        end
+        if now - lastMissionHeartbeat >= MISSION_HEARTBEAT_MS then
+            lastMissionHeartbeat = now
+            sendMissionHeartbeat()
+        end
+    elseif pausedForMission then
+        print("Market Sync: mission ended, resuming")
+        pausedForMission = false
+        nextInventoryAttempt = 0 -- refresh Owned right away (loot from the mission)
+    end
+
+    if not inMission and now >= nextInventoryAttempt then
         local succeeded = syncInventorySnapshot()
         nextInventoryAttempt = now + (succeeded and INVENTORY_POLL_MS or INVENTORY_RETRY_MS)
     end
 
-    if now - lastPoll >= POLL_MS then
+    if not inMission and now - lastPoll >= POLL_MS then
         lastPoll = now
 
         local order = fetchPendingOrder()

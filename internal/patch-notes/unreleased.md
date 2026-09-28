@@ -66,3 +66,15 @@ shipped (e.g. `v1.3.1.md`) and create a fresh `unreleased.md` — see
   warframe.com hotlinks (logo, favicon) are now local files, so the app stays
   fully offline. README screenshots regenerated. Web app: `public/` update;
   launcher: **needs a rebuild/release**. See DEVLOG.md.
+
+- **Launcher: "Download icons" button.** One click stores every item image
+  locally (~1,500 images, ~33 MB, progress bar, cancel/resume) so the shop
+  shows real art fully offline, no Warframe install needed. Server: new
+  `downloadedIcons.ts` / `iconDownloader.ts`, `POST /api/download-icons[/cancel]`,
+  `iconDownload` in `/api/status`. **Needs a `server/` update AND a launcher
+  rebuild** (new Rust command `server_post`). See DEVLOG.md.
+- **Market Sync.pluto pauses during missions** (inventory sync + order
+  handling; slow heartbeat only), like OpenTools Sync. Orders placed
+  mid-mission wait until it ends; the launcher shows "In mission (paused)".
+  Existing installs must delete and re-Install the script. **Not tested
+  in-game** - check `script_log` for the pause/resume lines. See DEVLOG.md.

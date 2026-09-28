@@ -179,6 +179,13 @@ export function getIconCacheVersion(): number {
     return iconCacheVersion;
 }
 
+// For callers that add icon files without going through extractFolder
+// (downloadedIcons.ts / iconDownloader.ts) - same effect: the memoized item
+// list rebuilds on its next call.
+export function bumpIconCacheVersion(): void {
+    iconCacheVersion++;
+}
+
 // Fire-and-forget, one folder. Never throws - a failure just logs a
 // warning and leaves that folder's items on the placeholder icon.
 function ensureFolderCached(folder: string): Promise<void> {

@@ -659,7 +659,35 @@ function attachOwnedRanksDisplay(row, item) {
     refresh();
 }
 
+// While the player is inside a mission, Market Sync.pluto deliberately
+// pauses order handling (heavy blocking calls mid-combat) and reports it via
+// GET /api/status's pluto.inMission - an order placed then just waits in the
+// queue. Without a hint it looks stuck, so a still-pending order says so ONCE
+// (per order). Best-effort: a failed status fetch is silently ignored.
+function makeMissionWaitNotifier() {
+    const startedAt = Date.now();
+    let notified = false;
+    let checking = false;
+    return async function noteIfWaitingForMission() {
+        if (notified || checking || Date.now() - startedAt < 4000) return;
+        checking = true;
+        try {
+            const res = await fetch("/api/status");
+            const status = await res.json();
+            if (status?.pluto?.inMission) {
+                notified = true;
+                toast("You're in a mission - Market Sync is paused and will run this order when it ends.", true);
+            }
+        } catch {
+            /* ignore - purely informational */
+        } finally {
+            checking = false;
+        }
+    };
+}
+
 function pollRankedOrder(orderId, direction, rank, btnEl, onSettled) {
+    const noteIfWaitingForMission = makeMissionWaitNotifier();
     const interval = setInterval(async () => {
         try {
             const res = await fetch(`/api/order/${orderId}`);
@@ -672,6 +700,8 @@ function pollRankedOrder(orderId, direction, rank, btnEl, onSettled) {
                 clearInterval(interval);
                 toast(`${direction === "buy" ? "Buy" : "Sell"} failed: ${order.detail || "unknown error"}`, false);
                 btnEl.disabled = false;
+            } else if (order.status === "pending") {
+                noteIfWaitingForMission();
             }
             // else still pending/processing - keep polling
         } catch (err) {
@@ -1067,6 +1097,7 @@ async function placeOrder(item, direction, priceEl, buyBtn, sellBtn, rank, refin
 }
 
 function pollOrder(orderId, item, direction, rank, buyBtn, restoreSellState, adjustOwnedLocally) {
+    const noteIfWaitingForMission = makeMissionWaitNotifier();
     const interval = setInterval(async () => {
         try {
             const res = await fetch(`/api/order/${orderId}`);
@@ -1086,6 +1117,8 @@ function pollOrder(orderId, item, direction, rank, buyBtn, restoreSellState, adj
                 toast(`${direction === "buy" ? "Buy" : "Sell"} failed for ${item.name}: ${order.detail || "unknown error"}`, false);
                 buyBtn.disabled = false;
                 restoreSellState();
+            } else if (order.status === "pending") {
+                noteIfWaitingForMission();
             }
             // else still pending/processing - keep polling
         } catch (err) {

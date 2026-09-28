@@ -50,7 +50,11 @@ stocked with real market prices, not an actual trading system.
   offline, optional one-time setup — see
   [DEVLOG.md](DEVLOG.md#offline--local-data-model)), with an opportunistic
   network fallback for anything not yet extracted while you're online.
-  Falls back to a placeholder instead of a broken image either way.
+  Falls back to a placeholder instead of a broken image either way. No
+  Warframe install to extract from? The launcher's **Download icons**
+  button fetches every image once (~1,500 images, ~30 MB, with a progress
+  bar) and stores them locally, so the shop shows real art offline from
+  then on.
 - **Live owned counts**, synced from your actual SpaceNinjaServer
   inventory, so Sell auto-disables on things you don't have.
 - **Sort and filter** by name, type, price, rarity, relic era, or owned
@@ -109,7 +113,8 @@ search for something, and hit Buy or Sell.
 `launcher/` is a small desktop app (Windows + Linux) that runs the
 backend for you instead of a terminal window: one button to install
 dependencies and launch, a status dashboard (server / price database /
-script connection), and a live log view.
+script connection), a live log view, and a one-click **Download icons**
+that stores all item art locally for offline use.
 
 Download a release from the [Releases page](../../releases) — Windows
 has two options: an installer (auto-updates itself) or a portable `.zip`

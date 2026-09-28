@@ -21,9 +21,11 @@ import {
     checkServerDeps,
     fetchServerStatus,
     installPlutoScript,
+    cancelIconDownload,
     installServerDeps,
     isServerRunning,
     KNOWN_STATUS_SCHEMA_VERSION,
+    startIconDownload,
     startServer,
     stopServer,
     validatePlutoScriptsDir,
@@ -68,6 +70,8 @@ export default function App() {
     const [diagChecking, setDiagChecking] = useState(false);
     const [diagResult, setDiagResult] = useState<{ ok: boolean; message: string } | null>(null);
     const [updateNotice, setUpdateNotice] = useState<DataUpdateNotice | null>(null);
+    const [iconStarting, setIconStarting] = useState(false);
+    const [iconError, setIconError] = useState<string | null>(null);
     const [appVersion, setAppVersion] = useState<string | null>(null);
 
     const autoOpenPending = useRef(false);
@@ -131,6 +135,30 @@ export default function App() {
                 /* store/version unavailable - skip the reminder */
             });
     }, [configLoaded]);
+
+    // --- "Download icons": a one-time fetch of every item image, stored by the
+    // server and used as local data afterwards (server/src/iconDownloader.ts).
+    // Progress comes from the /api/status poll below (status.iconDownload);
+    // these only start/stop the job. ---
+    async function handleDownloadIcons() {
+        setIconError(null);
+        setIconStarting(true);
+        try {
+            await startIconDownload(config.port);
+        } catch (e) {
+            setIconError(String(e));
+        } finally {
+            setIconStarting(false);
+        }
+    }
+
+    async function handleCancelIconDownload() {
+        try {
+            await cancelIconDownload(config.port);
+        } catch (e) {
+            setIconError(String(e));
+        }
+    }
 
     function handleDismissUpdateNotice() {
         setUpdateNotice(null);
@@ -421,9 +449,17 @@ export default function App() {
 
     const plutoChip: Chip = !status
         ? { label: "Unknown", tone: "unknown" }
+        : status.pluto.connected && status.pluto.inMission
+        ? { label: "In mission (paused)", tone: "off" }
         : status.pluto.connected
         ? { label: "Connected", tone: "ok" }
         : { label: "Waiting", tone: "pending" };
+
+    const icons = status?.iconDownload;
+    const iconRunning = icons?.state === "running";
+    const iconPct = icons && icons.total > 0 ? Math.min(100, Math.round((icons.done / icons.total) * 100)) : 0;
+    const iconMb = icons ? (icons.bytesOnDisk / 1048576).toFixed(1) : "0";
+    const iconsComplete = !!icons && icons.catalogTotal > 0 && icons.onDisk >= icons.catalogTotal;
 
     return (
         <div className="app">
@@ -558,6 +594,56 @@ export default function App() {
 
                         {diagResult && (
                             <div className={`banner ${diagResult.ok ? "ok" : "warn"}`}>{diagResult.message}</div>
+                        )}
+
+                        {status && icons && (
+                            <div className="status-detail icon-panel">
+                                <div className="icon-panel-head">
+                                    <span>Item icons</span>
+                                    {iconRunning ? (
+                                        <button className="btn-mini" onClick={handleCancelIconDownload}>
+                                            Cancel
+                                        </button>
+                                    ) : (
+                                        <button
+                                            className="btn-mini btn-mini-primary"
+                                            onClick={handleDownloadIcons}
+                                            disabled={iconStarting || !status.server.ok}
+                                        >
+                                            {iconStarting
+                                                ? "Starting..."
+                                                : iconsComplete
+                                                ? "Check for new"
+                                                : icons.onDisk > 0
+                                                ? "Resume download"
+                                                : "Download icons"}
+                                        </button>
+                                    )}
+                                </div>
+                                {iconRunning ? (
+                                    <>
+                                        <div className="progress" role="progressbar" aria-valuenow={iconPct} aria-valuemin={0} aria-valuemax={100}>
+                                            <i style={{ width: `${iconPct}%` }} />
+                                        </div>
+                                        <div className="icon-note">
+                                            {icons.done} / {icons.total} ({iconPct}%)
+                                            {icons.failed > 0 ? ` - ${icons.failed} failed` : ""}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="icon-note">
+                                        {iconsComplete
+                                            ? `All ${icons.onDisk} images are stored locally (${iconMb} MB) - the shop shows real art offline.`
+                                            : icons.onDisk > 0
+                                            ? `${icons.onDisk} of ${icons.catalogTotal} images stored locally (${iconMb} MB).`
+                                            : `Download every item image once (about ${icons.catalogTotal} images, ~30 MB) so the shop shows real art offline. Needs internet this one time.`}
+                                        {icons.state === "cancelled" && " Stopped - you can resume any time."}
+                                        {icons.state === "done" && icons.failed > 0 && ` ${icons.failed} failed - click again to retry them.`}
+                                        {icons.state === "error" && " The last download hit an error."}
+                                    </div>
+                                )}
+                                {iconError && <div className="icon-note icon-error">{iconError}</div>}
+                            </div>
                         )}
 
                         {status && (

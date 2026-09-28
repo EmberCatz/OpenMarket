@@ -11,6 +11,7 @@ import {
 } from "./itemsCache.js";
 import { getPrice, getPriceCacheStatus, triggerManualRefresh } from "./priceCache.js";
 import { ensureAllIconsCached, getIconCacheStatus } from "./localIcons.js";
+import { cancelIconDownload, getIconDownloadStatus, startIconDownload } from "./iconDownloader.js";
 import { enqueueOrder, popPendingOrder, reportOrderResult, getOrder } from "./orderQueue.js";
 import {
     setInventorySnapshot,
@@ -55,7 +56,20 @@ const SERVER_VERSION: string = JSON.parse(readFileSync(new URL("../package.json"
 // normal jitter/game hitches without flapping "Connected"/"Disconnected"
 // on every missed beat.
 let lastPlutoPollAt: number | null = null;
+let plutoInMission = false;
+// Stale window: 4x the script's normal 2s poll. While the script is paused
+// for a mission it only heartbeats every MISSION_HEARTBEAT_MS (10s in
+// Market Sync.pluto), so that mode gets a wider window (2.5x the heartbeat) -
+// otherwise the launcher would flip to "Disconnected" the moment a mission
+// starts. Normal mode keeps the tight window so a stopped script is noticed
+// quickly.
 const PLUTO_STALE_MS = 8000;
+const PLUTO_STALE_IN_MISSION_MS = 25000;
+
+function plutoAlive(): boolean {
+    if (lastPlutoPollAt === null) return false;
+    return Date.now() - lastPlutoPollAt < (plutoInMission ? PLUTO_STALE_IN_MISSION_MS : PLUTO_STALE_MS);
+}
 
 // --- Launcher-facing (public API - also usable directly via curl) ---
 
@@ -73,14 +87,36 @@ apiRouter.get("/status", (_req, res) => {
         catalog: getCatalogStatus(),
         database: getPriceCacheStatus(),
         icons: getIconCacheStatus(),
+        // Progress/result of the launcher's "Download icons" button (additive
+        // field, schemaVersion unchanged - see iconDownloader.ts).
+        iconDownload: getIconDownloadStatus(),
         pluto: {
             lastPollAt: lastPlutoPollAt,
-            connected: lastPlutoPollAt !== null && Date.now() - lastPlutoPollAt < PLUTO_STALE_MS
+            connected: plutoAlive(),
+            // Market Sync.pluto pauses order handling + inventory sync during
+            // a mission (heavy blocking calls mid-combat) and only sends a
+            // slow heartbeat - see /internal/pending-order below.
+            inMission: plutoAlive() && plutoInMission
         }
     });
 });
 
 // --- Frontend-facing ---
+
+// Launcher's "Download icons" button: fetches every catalog image once and
+// stores it locally (downloadedIcons.ts). 202 = started, 409 = already
+// running. Progress is read from GET /api/status's `iconDownload`.
+apiRouter.post("/download-icons", (_req, res) => {
+    if (!startIconDownload()) {
+        res.status(409).json({ error: "An icon download is already in progress." });
+        return;
+    }
+    res.status(202).json({ started: true });
+});
+
+apiRouter.post("/download-icons/cancel", (_req, res) => {
+    res.json({ cancelled: cancelIconDownload() });
+});
 
 // User-triggered "Update Data" button - the ONLY thing that ever talks to
 // warframe.market/extracts icons now (see itemsCache.ts/priceCache.ts/
@@ -288,7 +324,7 @@ apiRouter.get("/order/:id", (req, res) => {
 
 // --- Market Sync.pluto-facing only ---
 
-internalRouter.get("/pending-order", (_req, res) => {
+internalRouter.get("/pending-order", (req, res) => {
     // Log only the FIRST poll this run, not every one - at Market
     // Sync.pluto's 2s poll interval, logging every poll would be ~30
     // lines/minute of pure noise. This edge-triggered line is what
@@ -299,6 +335,14 @@ internalRouter.get("/pending-order", (_req, res) => {
         console.log("Market Sync.pluto: connected (first poll received).");
     }
     lastPlutoPollAt = Date.now();
+    // ?inMission=1 is Market Sync.pluto's paused-for-a-mission heartbeat: it
+    // only says "still alive", and must NOT hand out an order (the script
+    // won't execute anything until the mission ends - orders just wait).
+    plutoInMission = req.query.inMission === "1";
+    if (plutoInMission) {
+        res.status(204).end();
+        return;
+    }
     const order = popPendingOrder();
     if (!order) {
         res.status(204).end();

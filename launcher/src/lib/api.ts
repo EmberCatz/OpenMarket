@@ -33,7 +33,22 @@ export interface ServerStatus {
         totalFolders: number;
         extractedFolders: number;
     };
-    pluto: { lastPollAt: number | null; connected: boolean };
+    // Additive fields (2026-09-28) - optional so an older server that lacks
+    // them still parses; schemaVersion is unchanged.
+    iconDownload?: IconDownloadStatus;
+    pluto: { lastPollAt: number | null; connected: boolean; inMission?: boolean };
+}
+
+// Progress/result of the "Download icons" job (server/src/iconDownloader.ts).
+export interface IconDownloadStatus {
+    state: "idle" | "running" | "done" | "cancelled" | "error";
+    total: number; // unique images the catalog needs (this run)
+    done: number;
+    failed: number;
+    lastError: string | null;
+    onDisk: number; // images stored locally, persisted across restarts
+    bytesOnDisk: number;
+    catalogTotal: number;
 }
 
 export const KNOWN_STATUS_SCHEMA_VERSION = 2;
@@ -82,4 +97,14 @@ export function isServerRunning(): Promise<boolean> {
 
 export function fetchServerStatus(port: number): Promise<ServerStatus> {
     return invoke("fetch_server_status", { port });
+}
+
+// Icon download job control - see server/src/routes.ts. Rejects with the
+// server's own message (e.g. "already in progress").
+export function startIconDownload(port: number): Promise<unknown> {
+    return invoke("server_post", { port, path: "/api/download-icons" });
+}
+
+export function cancelIconDownload(port: number): Promise<unknown> {
+    return invoke("server_post", { port, path: "/api/download-icons/cancel" });
 }

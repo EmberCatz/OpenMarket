@@ -66,6 +66,7 @@ import path from "node:path";
 import { fetchAllItems, type WfmItemEntry } from "./warframeMarketApi.js";
 import { getIconPathForGameRef, getLocalIconPath, getIconCacheVersion } from "./localIcons.js";
 import { getWfcdIconUrl } from "./wfcdIcons.js";
+import { getDownloadedIconPath } from "./downloadedIcons.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -290,12 +291,45 @@ function saveToDisk(): void {
 // real art while offline than while online. Local extraction itself
 // still only ever happens via the explicit "Update Data" action
 // (routes.ts), never triggered from here.
+//
+// Added 2026-09-28: between local extraction and the network sits a THIRD,
+// fully offline source - icons the launcher's "Download icons" button
+// fetched once and stored under icon-cache/downloaded/ (downloadedIcons.ts).
+// If this image was downloaded, its local /icon-cache/downloaded/ path
+// replaces the remote URL; otherwise the remote URL is returned as before.
+function remoteIconUrl(gameRef: string, iconPath: string): string {
+    return getWfcdIconUrl(gameRef) ?? `https://browse.wf${iconPath}`;
+}
+
 function iconUrl(gameRef: string): string | null {
     const iconPath = getIconPathForGameRef(gameRef);
     if (!iconPath) return null;
     const rel = getLocalIconPath(iconPath);
     if (rel) return `/icon-cache/${rel}`;
-    return getWfcdIconUrl(gameRef) ?? `https://browse.wf${iconPath}`;
+    const remote = remoteIconUrl(gameRef, iconPath);
+    return getDownloadedIconPath(remote) ?? remote;
+}
+
+// The unique remote image URLs the catalog's items would load from the
+// network (i.e. everything NOT already covered by local extraction) - the
+// work list for iconDownloader.ts. Several items share one image (every
+// refinement of a relic), hence "unique". Memoized per catalog + icon-cache
+// version: it does one fs stat per item, which is fine once but not per
+// status poll.
+let remoteUrlsMemo: { source: MarketItem[]; iconVersion: number; urls: string[] } | null = null;
+export function getRemoteIconUrls(): string[] {
+    const version = getIconCacheVersion();
+    if (remoteUrlsMemo && remoteUrlsMemo.source === cache && remoteUrlsMemo.iconVersion === version) {
+        return remoteUrlsMemo.urls;
+    }
+    const seen = new Set<string>();
+    for (const item of cache) {
+        const iconPath = getIconPathForGameRef(item.gameRef);
+        if (!iconPath || getLocalIconPath(iconPath)) continue;
+        seen.add(remoteIconUrl(item.gameRef, iconPath));
+    }
+    remoteUrlsMemo = { source: cache, iconVersion: version, urls: [...seen] };
+    return remoteUrlsMemo.urls;
 }
 
 function classify(item: WfmItemEntry): MarketItem | null {

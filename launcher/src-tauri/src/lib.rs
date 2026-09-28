@@ -331,6 +331,36 @@ async fn fetch_server_status(port: u16) -> Result<serde_json::Value, String> {
     resp.json::<serde_json::Value>().await.map_err(|e| e.to_string())
 }
 
+// POSTs to the running OpenMarket server on behalf of the UI. The webview
+// can't do this itself: the server sends no CORS headers (it's a same-origin
+// web app + a Rust client), so a cross-origin fetch from the launcher's
+// origin is blocked. Whitelisted to the two icon-download endpoints
+// (added 2026-09-28) rather than a generic proxy - the launcher UI has no
+// business POSTing anything else, and this keeps a compromised page from
+// using it to hit arbitrary server routes (e.g. /api/order).
+#[tauri::command]
+async fn server_post(port: u16, path: String) -> Result<serde_json::Value, String> {
+    const ALLOWED: [&str; 2] = ["/api/download-icons", "/api/download-icons/cancel"];
+    if !ALLOWED.contains(&path.as_str()) {
+        return Err(format!("{path} is not an allowed launcher endpoint"));
+    }
+    let url = format!("http://127.0.0.1:{port}{path}");
+    let resp = reqwest::Client::new()
+        .post(&url)
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    let status = resp.status();
+    let body = resp.json::<serde_json::Value>().await.map_err(|e| e.to_string())?;
+    if status.is_success() {
+        Ok(body)
+    } else {
+        // 409 = "already running" etc. - surface the server's own message.
+        Err(body.get("error").and_then(|e| e.as_str()).unwrap_or("request failed").to_string())
+    }
+}
+
 // Closing the launcher via its own window (the X button, Alt+F4, etc.)
 // already goes through the CloseRequested handler below - but that's not
 // the only way a Linux desktop app gets terminated. A taskbar/dock
@@ -404,7 +434,8 @@ pub fn run() {
             start_server,
             stop_server,
             is_server_running,
-            fetch_server_status
+            fetch_server_status,
+            server_post
         ])
         .setup(|_app| {
             #[cfg(unix)]

@@ -795,6 +795,66 @@ The logo now sits to the left of the title too (the existing 64x64 app icon,
 shown at 24px so it stays sharp on high-DPI screens; inline rather than a
 flex layout so the title/version text still copies as one line).
 
+### One-click "Download icons" + pausing during missions (added 2026-09-28)
+
+**Download icons (launcher button -> local data).** Real art used to need
+either the user's own Warframe install (Warframe-Exporter extraction) or a
+live network fallback on every page load. The launcher's dashboard now has an
+**Item icons** panel: one click downloads every catalog image once, with a
+progress bar (done / total, %, failures), Cancel, and Resume; afterwards the
+shop serves them from disk with no network.
+
+- **Where they come from / go:** the unique remote URLs behind the catalog
+  (the `@wfcd/items` CDN, browse.wf for the few it lacks; items already
+  covered by local extraction are skipped) -> `server/icon-cache/downloaded/`,
+  named by a hash of the SOURCE URL (several items share an image - every
+  relic refinement - so each is stored once and no mapping file is needed;
+  the index is rebuilt by listing the directory). Written atomically (temp +
+  rename), so a killed server never leaves a half-written image that would be
+  served as valid. Already gitignored (`icon-cache/`).
+- **Precedence** (`itemsCache.ts`'s `iconUrl()`): locally-extracted game
+  cache -> downloaded copy -> remote URL -> placeholder (frontend `onerror`).
+- **Size/time (measured, not guessed):** 1,546 unique images, ~33 MB, about a
+  minute with 6 parallel requests; 0 failures in the live run. Idempotent: a
+  re-run only fetches what's missing (so "Check for new" after a catalog
+  update is cheap); cancel + resume verified.
+- **Server:** `downloadedIcons.ts` (index/store), `iconDownloader.ts` (job:
+  concurrency 6, 20 s timeout, 2 retries, 5 MB cap, image content-types only,
+  never throws), `POST /api/download-icons` (202 / 409 if running),
+  `POST /api/download-icons/cancel`, progress in `GET /api/status` ->
+  `iconDownload` (additive; schemaVersion unchanged). URLs only ever come
+  from the app's own catalog, never from a request.
+- **Launcher:** the webview can't POST to the server (no CORS headers), so a
+  small Rust command `server_post` does it, **whitelisted to exactly those two
+  paths**. Progress rides the existing 2 s status poll. `cargo check` clean.
+
+**Pausing during missions (`Market Sync.pluto`).** Same idea as OpenTools
+Sync's 2026-09-25 change: `http.request()` is synchronous, and the
+`inventory.php` fetch is heavy (~300 KB, ~27% flake rate with multi-second
+retries), so doing it mid-combat risks a stutter. While
+`gGameRules instanceof LotusGameRules` (the attested check) the script now
+skips the inventory sync AND order handling; it only sends a slow (10 s)
+heartbeat `GET /internal/pending-order?inMission=1`, which the backend answers
+204 without popping an order. On mission end it logs, and re-syncs the
+inventory immediately so loot shows in Owned at once. Consequences worth
+knowing: **orders placed mid-mission wait until it ends** (the web UI says so
+once via a toast when it sees `pluto.inMission`); `/api/status` gained
+`pluto.inMission` and the launcher chip reads "In mission (paused)" instead of
+falling to "Waiting" (the stale window is 8 s normally, 25 s only while in a
+mission, so a stopped script is still noticed quickly).
+
+**Verification.** Server: live download against the real CDN (start, double
+start -> 409, cancel, resume, completion; every item's icon then a local path,
+served with the right content-type; index survives a restart; no temp files
+left), heartbeat semantics via curl, stress harness section K + the full run
+(80 -> 87 checks, 0 findings). Launcher: built UI against a stubbed Tauri
+backend in every state (idle / running / cancelled / complete / in-mission).
+**Not verified:** the Pluto script change in-game (no game/interpreter here -
+the pause/resume prints in `script_log` are the first thing to check; per
+OpenTools' notes Railjack, Duviri and open-world zones weren't covered by
+that mission check either), the real Tauri window (`server_post` compiles but
+was not exercised through Tauri), and Linux/Steam Deck.
+
 ### Releases and auto-update
 
 Tagged releases (`v*`) build via GitHub Actions
