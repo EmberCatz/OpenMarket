@@ -64,7 +64,7 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { fetchAllItems, type WfmItemEntry } from "./warframeMarketApi.js";
-import { getIconPathForGameRef, getLocalIconPath } from "./localIcons.js";
+import { getIconPathForGameRef, getLocalIconPath, getIconCacheVersion } from "./localIcons.js";
 import { getWfcdIconUrl } from "./wfcdIcons.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -489,8 +489,50 @@ async function refresh(): Promise<MarketItem[]> {
 // with a completed icon extraction. routes.ts's POST /api/update-data
 // runs the catalog refresh and icon extraction as separate steps, so this
 // ordering issue is real, not hypothetical.
+//
+// Memoized (added 2026-09-28 after a stress test): this used to redo the
+// whole ~3000-item map + fs.existsSync sweep on EVERY call, and every
+// per-row lookup (/api/owned/:slug, /api/price/:slug, /api/order, ...)
+// goes through here - ~70ms of blocked event loop per request. The view is
+// rebuilt only when the catalog array changes, when icon extraction lands
+// new files (getIconCacheVersion), or after ICON_VIEW_MAX_AGE_MS as a
+// safety net for icon files added/removed outside this process. The
+// returned array and its items are shared - callers must treat them as
+// read-only (all current ones do).
+const ICON_VIEW_MAX_AGE_MS = 30_000;
+interface ItemsView {
+    items: MarketItem[];
+    bySlug: Map<string, MarketItem>;
+    byGameRef: Map<string, MarketItem>;
+    source: MarketItem[];
+    iconVersion: number;
+    builtAt: number;
+}
+let itemsView: ItemsView | null = null;
+
+function getItemsView(): ItemsView {
+    if (
+        itemsView &&
+        itemsView.source === cache &&
+        itemsView.iconVersion === getIconCacheVersion() &&
+        Date.now() - itemsView.builtAt < ICON_VIEW_MAX_AGE_MS
+    ) {
+        return itemsView;
+    }
+    const items = cache.map(item => ({ ...item, icon: iconUrl(item.gameRef) }));
+    const bySlug = new Map<string, MarketItem>();
+    const byGameRef = new Map<string, MarketItem>();
+    // First match wins, same as the Array.find() lookups these replace.
+    for (const item of items) {
+        if (!bySlug.has(item.slug)) bySlug.set(item.slug, item);
+        if (!byGameRef.has(item.gameRef)) byGameRef.set(item.gameRef, item);
+    }
+    itemsView = { items, bySlug, byGameRef, source: cache, iconVersion: getIconCacheVersion(), builtAt: Date.now() };
+    return itemsView;
+}
+
 export async function getItems(): Promise<MarketItem[]> {
-    return cache.map(item => ({ ...item, icon: iconUrl(item.gameRef) }));
+    return getItemsView().items;
 }
 
 export interface CatalogStatus {
@@ -521,13 +563,11 @@ export function triggerManualCatalogRefresh(): Promise<MarketItem[]> {
 }
 
 export async function findItemByGameRef(gameRef: string): Promise<MarketItem | undefined> {
-    const items = await getItems();
-    return items.find(m => m.gameRef === gameRef);
+    return getItemsView().byGameRef.get(gameRef);
 }
 
 export async function findItemBySlug(slug: string): Promise<MarketItem | undefined> {
-    const items = await getItems();
-    return items.find(m => m.slug === slug);
+    return getItemsView().bySlug.get(slug);
 }
 
 // The real grantable/sellable ItemType path for an item at a given

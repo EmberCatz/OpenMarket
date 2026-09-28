@@ -14,12 +14,34 @@
 
 import { RELIC_REFINEMENT_SUFFIXES, type MarketItem } from "./itemsCache.js";
 
-let counts: Record<string, number> = {};
+// Null-prototype maps: keys come straight from a POST body, and a plain
+// {} would let a key like "__proto__" or "constructor" resolve to
+// Object.prototype members instead of "not owned".
+let counts: Record<string, number> = Object.create(null);
 let receivedAt: number | null = null;
 
-export function setInventorySnapshot(newCounts: Record<string, number>): void {
-    counts = newCounts;
+// The snapshot POST is only shape-checked at the top level in routes.ts, so
+// everything below it is untrusted (added 2026-09-28 after a stress test
+// showed a single malformed `ranked` value crashed the whole server, and
+// string counts flowed straight through to the UI). Anything that isn't a
+// plain finite, non-negative, safe-integer-range number is dropped rather
+// than coerced - Market Sync.pluto only ever sends real ItemCounts, so a
+// bad entry means a script bug or a stray local client, and "not owned" is
+// the safe reading. Returns how many entries were dropped so the caller can
+// log it.
+export function setInventorySnapshot(newCounts: Record<string, unknown>): { kept: number; dropped: number } {
+    const clean: Record<string, number> = Object.create(null);
+    let dropped = 0;
+    for (const [key, value] of Object.entries(newCounts)) {
+        if (typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= Number.MAX_SAFE_INTEGER) {
+            clean[key] = value;
+        } else {
+            dropped++;
+        }
+    }
+    counts = clean;
     receivedAt = Date.now();
+    return { kept: Object.keys(clean).length, dropped };
 }
 
 export function getOwnedCount(gameRef: string): number {
@@ -49,10 +71,36 @@ export interface RankedInstance {
     oid: string;
 }
 
-let rankedInstances: Record<string, RankedInstance[]> = {};
+let rankedInstances: Record<string, RankedInstance[]> = Object.create(null);
 
-export function setRankedInstances(newRanked: Record<string, RankedInstance[]>): void {
-    rankedInstances = newRanked;
+// Same untrusted-input rule as setInventorySnapshot: each value must be an
+// array of { rank: non-negative integer, oid: non-empty string } entries.
+// Bad entries are dropped individually (one bad copy shouldn't hide the
+// rest of that mod's copies); a key with no valid entries is omitted.
+export function setRankedInstances(newRanked: Record<string, unknown>): { kept: number; dropped: number } {
+    const clean: Record<string, RankedInstance[]> = Object.create(null);
+    let kept = 0;
+    let dropped = 0;
+    for (const [gameRef, list] of Object.entries(newRanked)) {
+        if (!Array.isArray(list)) {
+            dropped++;
+            continue;
+        }
+        const valid: RankedInstance[] = [];
+        for (const entry of list) {
+            const rank = (entry as { rank?: unknown } | null)?.rank;
+            const oid = (entry as { oid?: unknown } | null)?.oid;
+            if (typeof rank === "number" && Number.isInteger(rank) && rank >= 0 && rank <= 1000 && typeof oid === "string" && oid.length > 0) {
+                valid.push({ rank, oid });
+                kept++;
+            } else {
+                dropped++;
+            }
+        }
+        if (valid.length > 0) clean[gameRef] = valid;
+    }
+    rankedInstances = clean;
+    return { kept, dropped };
 }
 
 export function getOwnedRanks(gameRef: string): { rank: number; count: number }[] {

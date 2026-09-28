@@ -476,6 +476,43 @@ Fixes:
   status line now says the inventory hasn't arrived yet instead of just
   showing an empty list. Verified on a scratch port with Playwright.
 
+### Backend hardening from the stress harness (2026-09-28)
+
+`server/tools/stress-test.mjs` (working copy only, not published) spawns a
+scratch server and hammers it: a heavy inventory (200k junk item types +
+~60k ranked copies, ~8 MB), oversized/malformed bodies, malformed
+`counts`/`ranked` shapes, concurrency, order abuse, script-poll floods, URL
+fuzzing/static traversal. It found five real problems, all fixed:
+
+- **One bad snapshot could crash the whole server.** Only the top level of
+  the POST body was validated; a non-array `ranked` value made
+  `getOwnedRanks`/`takeOidForRank` throw inside an async route, and Express 4
+  + Node 22 exits on that unhandled rejection. Snapshot contents are now
+  validated per entry and dropped/logged when malformed, stored in
+  null-prototype maps (no `__proto__` key surprises), and every async route
+  goes through `asyncHandler` with a catch-all error middleware in
+  `index.ts`.
+- **`getItems()` was ~70 ms per call.** It rebuilt a 3000-item list with a
+  synchronous `fs.existsSync` per item, and every per-row lookup called it.
+  Now memoized (see BUGS.md); output verified identical.
+- **String counts** (`"3"`) flowed through to the UI and relic sums
+  concatenated strings; non-finite, negative and > MAX_SAFE_INTEGER counts are
+  now dropped too.
+- **Order input** accepted `Infinity`, fractional/negative/string ranks and
+  non-string gameRefs; now strict.
+- **The order map never shrank**; now pruned (10 min for finished orders,
+  1 h hard cap).
+
+Also fixed on the way: an EMPTY inventory reaches this endpoint as
+`counts: []` (Lua's `json.encode` turns an empty table into an array), which
+used to 400 - harmless before the script started checking the status, an
+infinite retry loop after. It is accepted as an empty map now.
+
+Known remaining gaps, deliberately not addressed: the harness cannot run the
+Pluto script or a real SpaceNinjaServer, so SNS failures/slow responses and
+the in-game side stay untested; `price: 0` orders are still accepted (this is
+a self-grant tool with no real economy).
+
 ## Probe scripts
 
 Optional one-shot diagnostics in **`scripts/probes/`** (moved out of

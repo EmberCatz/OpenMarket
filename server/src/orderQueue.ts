@@ -25,7 +25,33 @@ export interface Order {
 }
 
 const orders = new Map<string, Order>();
-const pendingQueue: string[] = [];
+let pendingQueue: string[] = [];
+
+// Orders used to live in `orders` forever (added pruning 2026-09-28 after a
+// stress test showed unbounded growth). Finished orders only need to stay
+// long enough for the frontend's status polling to see the result; anything
+// older than the hard cap is dropped whatever its state - a "pending" order
+// that a disconnected script never picked up for an hour is stale (running
+// it much later would be a surprise), so it expires instead of lingering.
+const TERMINAL_RETENTION_MS = 10 * 60_000;
+const HARD_RETENTION_MS = 60 * 60_000;
+const PRUNE_INTERVAL_MS = 30_000;
+let lastPrunedAt = 0;
+
+export function pruneOrders(now: number = Date.now()): number {
+    lastPrunedAt = now;
+    let removed = 0;
+    for (const [id, order] of orders) {
+        const age = now - order.createdAt;
+        const terminal = order.status === "done" || order.status === "failed";
+        if (age > HARD_RETENTION_MS || (terminal && age > TERMINAL_RETENTION_MS)) {
+            orders.delete(id);
+            removed++;
+        }
+    }
+    if (removed > 0) pendingQueue = pendingQueue.filter(id => orders.has(id));
+    return removed;
+}
 
 // If a script never reports back (crashed, stopped, network hiccup), don't
 // leave the order stuck "processing" forever - the frontend times it out.
@@ -54,6 +80,7 @@ export function enqueueOrder(
         status: "pending",
         createdAt: Date.now()
     };
+    if (Date.now() - lastPrunedAt >= PRUNE_INTERVAL_MS) pruneOrders();
     orders.set(order.id, order);
     pendingQueue.push(order.id);
     return order;

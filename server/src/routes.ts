@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
 import { readFileSync } from "node:fs";
 import {
     getItems,
@@ -19,12 +19,22 @@ import {
     setRankedInstances,
     getOwnedRanks,
     takeOidForRank,
-    getTotalOwned,
-    type RankedInstance
+    getTotalOwned
 } from "./inventorySnapshot.js";
 
 export const apiRouter = Router();
 export const internalRouter = Router();
+
+// Express 4 does not catch a rejected promise from an async handler: the
+// request hangs and, on Node 15+, the unhandled rejection kills the whole
+// process (confirmed 2026-09-28 by a stress test - one throw inside an
+// async route took the server down). Every async route is wrapped so a
+// throw becomes a normal 500 via index.ts's error middleware instead.
+function asyncHandler(fn: (req: Request, res: Response) => Promise<void>) {
+    return (req: Request, res: Response, next: NextFunction): void => {
+        fn(req, res).catch(next);
+    };
+}
 
 const SERVER_STARTED_AT = Date.now();
 
@@ -81,7 +91,7 @@ apiRouter.get("/status", (_req, res) => {
 // needs one combined "done" signal rather than juggling three separate
 // polls. The frontend still shows progress via GET /api/status's
 // `refreshInProgress` fields while this is in flight.
-apiRouter.post("/update-data", async (_req, res) => {
+apiRouter.post("/update-data", asyncHandler(async (_req, res) => {
     if (getCatalogStatus().refreshInProgress || getPriceCacheStatus().refreshInProgress || getIconCacheStatus().extracting) {
         res.status(409).json({ error: "An update is already in progress." });
         return;
@@ -95,13 +105,13 @@ apiRouter.post("/update-data", async (_req, res) => {
     }
     triggerManualRefresh();
     await ensureAllIconsCached();
-});
+}));
 
-apiRouter.get("/items", async (_req, res) => {
+apiRouter.get("/items", asyncHandler(async (_req, res) => {
     res.json(await getItems());
-});
+}));
 
-apiRouter.get("/price/:slug", async (req, res) => {
+apiRouter.get("/price/:slug", asyncHandler(async (req, res) => {
     const subtype = typeof req.query.subtype === "string" ? req.query.subtype : "regular";
     const rank = typeof req.query.rank === "string" ? parseInt(req.query.rank, 10) || 0 : 0;
     // maxRank bounds the rank-interpolation fallback (see priceCache.ts) -
@@ -109,9 +119,9 @@ apiRouter.get("/price/:slug", async (req, res) => {
     // skips that fallback entirely.
     const item = await findItemBySlug(req.params.slug);
     res.json(getPrice(req.params.slug, subtype, rank, item?.maxRank ?? null));
-});
+}));
 
-apiRouter.post("/order", async (req, res) => {
+apiRouter.post("/order", asyncHandler(async (req, res) => {
     const { gameRef, direction, price, rank, refinement } = req.body as {
         gameRef?: string;
         direction?: string;
@@ -119,8 +129,24 @@ apiRouter.post("/order", async (req, res) => {
         rank?: number;
         refinement?: string;
     };
-    if (!gameRef || (direction !== "buy" && direction !== "sell") || typeof price !== "number" || price < 0) {
-        res.status(400).json({ error: "Expected { gameRef, direction: 'buy'|'sell', price, rank?, refinement? }" });
+    // Strict types (tightened 2026-09-28 after a stress test): price must be
+    // a finite number (JSON's 1e999 parses to Infinity, which passed the old
+    // `typeof === "number"` check and later serialized to null in the
+    // script), and rank - when present at all - must be a whole number, not
+    // 1.5 / "3" / -2, since it ends up in the item's fingerprint.
+    const rankPresent = rank !== undefined && rank !== null;
+    if (
+        typeof gameRef !== "string" ||
+        gameRef.length === 0 ||
+        (direction !== "buy" && direction !== "sell") ||
+        typeof price !== "number" ||
+        !Number.isFinite(price) ||
+        price < 0 ||
+        (rankPresent && (typeof rank !== "number" || !Number.isInteger(rank) || rank < 0))
+    ) {
+        res.status(400).json({
+            error: "Expected { gameRef: string, direction: 'buy'|'sell', price: finite number >= 0, rank?: whole number >= 0, refinement? }"
+        });
         return;
     }
     const item = await findItemByGameRef(gameRef);
@@ -203,13 +229,13 @@ apiRouter.post("/order", async (req, res) => {
     const order = enqueueOrder(direction, finalGameRef, displayName, Math.round(price), item.category, effectiveRank);
     console.log(`Order enqueued: ${direction} ${displayName} for ${Math.round(price)}p [${order.id}]`);
     res.json({ orderId: order.id });
-});
+}));
 
 // Prime sets have no single "owned" count that means anything (buying one
 // grants several different real parts, never the set's own gameRef - see
 // itemsCache.ts) - the frontend only ever calls this for sellable items
 // (individual parts, mods/arcanes at rank 0, relics at any refinement).
-apiRouter.get("/owned/:slug", async (req, res) => {
+apiRouter.get("/owned/:slug", asyncHandler(async (req, res) => {
     const item = await findItemBySlug(req.params.slug);
     if (!item) {
         res.status(404).json({ error: "Unknown slug" });
@@ -218,21 +244,21 @@ apiRouter.get("/owned/:slug", async (req, res) => {
     const refinement = typeof req.query.refinement === "string" ? req.query.refinement : undefined;
     const gameRef = resolveSellGameRef(item, refinement);
     res.json({ owned: getOwnedCount(gameRef), known: hasInventorySnapshot() });
-});
+}));
 
 // Breaks out ranked (rank > 0) owned copies by exact rank, e.g. owning a
 // rank 0, rank 3, and max-rank Serration at once would otherwise all
 // collapse into one ambiguous "Owned: N" (which only ever reflects the
 // rank-0 RawUpgrades count anyway - ranked copies live in a completely
 // separate collection). Only meaningful for mods/arcanes.
-apiRouter.get("/owned-ranks/:slug", async (req, res) => {
+apiRouter.get("/owned-ranks/:slug", asyncHandler(async (req, res) => {
     const item = await findItemBySlug(req.params.slug);
     if (!item) {
         res.status(404).json({ error: "Unknown slug" });
         return;
     }
     res.json({ ranks: getOwnedRanks(item.gameRef) });
-});
+}));
 
 // Bulk total-owned lookup for the "Owned"/"Not Owned" filter and "sort by
 // owned" - a single request over already-in-memory data (no external
@@ -240,7 +266,7 @@ apiRouter.get("/owned-ranks/:slug", async (req, res) => {
 // the /api/items list it already has. Prime sets are never included
 // (never meaningfully "owned" as a single unit - see getTotalOwned's
 // module comment); the frontend treats a missing key as 0.
-apiRouter.get("/owned-summary", async (_req, res) => {
+apiRouter.get("/owned-summary", asyncHandler(async (_req, res) => {
     const items = await getItems();
     const summary: Record<string, number> = {};
     for (const item of items) {
@@ -249,7 +275,7 @@ apiRouter.get("/owned-summary", async (_req, res) => {
         if (total > 0) summary[item.gameRef] = total;
     }
     res.json({ owned: summary, known: hasInventorySnapshot() });
-});
+}));
 
 apiRouter.get("/order/:id", (req, res) => {
     const order = getOrder(req.params.id);
@@ -282,20 +308,27 @@ internalRouter.get("/pending-order", (_req, res) => {
 });
 
 internalRouter.post("/inventory-snapshot", (req, res) => {
-    const { counts, ranked } = req.body as { counts?: unknown; ranked?: unknown };
+    const { counts: rawCounts, ranked } = (req.body ?? {}) as { counts?: unknown; ranked?: unknown };
+    // Pluto's json.encode serializes an EMPTY Lua table as "[]" (array), not
+    // "{}" - so a brand-new account with no mods/relics/recipes at all sends
+    // counts as []. Treat an empty array as an empty map (same reasoning as
+    // `ranked` below) instead of 400ing, which would make the script retry
+    // forever. A NON-empty array is still a real shape error.
+    const counts = Array.isArray(rawCounts) && rawCounts.length === 0 ? {} : rawCounts;
     if (!counts || typeof counts !== "object" || Array.isArray(counts)) {
         res.status(400).json({ error: "Expected { counts: Record<string, number>, ranked?: Record<string, {rank,oid}[]> }" });
         return;
     }
     const isFirstSnapshot = !hasInventorySnapshot();
-    setInventorySnapshot(counts as Record<string, number>);
-    // Pluto's json.encode serializes an empty Lua table as "[]" (array),
-    // not "{}" (object) - there's no ranked mods owned at all in that
-    // case, so treat an empty array the same as an empty object rather
-    // than rejecting it.
+    const countsResult = setInventorySnapshot(counts as Record<string, unknown>);
+    let rankedResult = { kept: 0, dropped: 0 };
+    // Same empty-table-as-[] rule for `ranked`: there's no ranked mods owned
+    // at all in that case, so treat an empty array the same as an empty
+    // object rather than rejecting it. Values inside are validated by
+    // setRankedInstances - anything malformed is dropped, never trusted.
     if (ranked && typeof ranked === "object") {
         if (!Array.isArray(ranked)) {
-            setRankedInstances(ranked as Record<string, RankedInstance[]>);
+            rankedResult = setRankedInstances(ranked as Record<string, unknown>);
         } else if (ranked.length === 0) {
             setRankedInstances({});
         }
@@ -304,19 +337,23 @@ internalRouter.post("/inventory-snapshot", (req, res) => {
     // enough to need first-time-only gating like the poll log above, and
     // an ongoing "yes, still syncing" line is more useful here than a
     // one-off.
+    const dropped = countsResult.dropped + rankedResult.dropped;
     console.log(
-        `Inventory snapshot ${isFirstSnapshot ? "received (first)" : "updated"}: ${Object.keys(counts as object).length} item types.`
+        `Inventory snapshot ${isFirstSnapshot ? "received (first)" : "updated"}: ${countsResult.kept} item types.` +
+            (dropped > 0 ? ` WARNING: dropped ${dropped} malformed entr${dropped === 1 ? "y" : "ies"} (non-numeric/negative count or bad ranked shape).` : "")
     );
     res.status(204).end();
 });
 
 internalRouter.post("/order-result", (req, res) => {
-    const { orderId, ok, detail } = req.body as { orderId?: string; ok?: boolean; detail?: string };
-    if (!orderId || typeof ok !== "boolean") {
+    const { orderId, ok, detail } = (req.body ?? {}) as { orderId?: unknown; ok?: unknown; detail?: unknown };
+    if (typeof orderId !== "string" || orderId.length === 0 || typeof ok !== "boolean") {
         res.status(400).json({ error: "Expected { orderId, ok, detail? }" });
         return;
     }
-    const found = reportOrderResult(orderId, ok, detail);
+    // `detail` is shown in a toast - cap it so a runaway error string can't
+    // bloat a stored order.
+    const found = reportOrderResult(orderId, ok, typeof detail === "string" ? detail.slice(0, 500) : undefined);
     if (!found) {
         res.status(404).json({ error: "Unknown order id" });
         return;

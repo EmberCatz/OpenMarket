@@ -167,6 +167,16 @@ async function extractFolder(folder: string): Promise<void> {
 
     fs.writeFileSync(markerPath(folder), new Date().toISOString());
     extractedFolders.add(folder);
+    iconCacheVersion++;
+}
+
+// Bumped whenever new icon files land on disk (a folder finished
+// extracting). itemsCache.ts's memoized item list keys off this so it can
+// skip its per-item fs.existsSync sweep (~3000 sync stats) on every
+// request and only redo it when icons actually changed.
+let iconCacheVersion = 0;
+export function getIconCacheVersion(): number {
+    return iconCacheVersion;
 }
 
 // Fire-and-forget, one folder. Never throws - a failure just logs a

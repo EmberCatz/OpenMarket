@@ -35,3 +35,14 @@ shipped (e.g. `v1.3.1.md`) and create a fresh `unreleased.md` — see
   `scripts/Market Sync.pluto` changed; existing installs must delete and
   re-Install the script (Install never overwrites). No launcher rebuild.
   Script change unverified in-game. See BUGS.md / DEVLOG.md.
+
+- **Backend hardening** (server-side only, no launcher rebuild): a
+  malformed inventory snapshot can no longer crash the server (per-entry
+  validation + every async route wrapped + a catch-all error handler);
+  `getItems()` is memoized (per-row lookups ~70 ms -> ~15 ms; identical
+  output); `POST /api/order` rejects Infinity/fractional/negative/string
+  values; finished orders are pruned; an empty-inventory snapshot (`[]`)
+  is accepted. Needs a `server/` update on existing installs (files:
+  `itemsCache.ts`, `localIcons.ts`, `inventorySnapshot.ts`, `routes.ts`,
+  `orderQueue.ts`, `index.ts`). Found by a local stress harness that is not
+  part of this repo. See BUGS.md / DEVLOG.md.
